@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from './ui/GlassCard';
 import { Button } from './ui/Button';
-import { Settings, Save, X, Edit3, Plus, Trash2, Lock } from 'lucide-react';
-import { databases, APPWRITE_CONFIG } from '@/lib/appwrite';
+import { Settings, Save, X, Edit3, Plus, Trash2, Lock, User, Users } from 'lucide-react';
+import { databases, APPWRITE_CONFIG, account } from '@/lib/appwrite';
 import { ID, Query } from 'appwrite';
 import { useAuth } from '@/context/AuthContext';
 
@@ -25,7 +25,7 @@ interface AdminPanelProps {
 
 export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, addPriceItem, deletePriceItem, updatePlanConfig, onUpdatePrices, currentPlan, isOpen = false, onClose }: AdminPanelProps) => {
     const { role, user } = useAuth();
-    const [activeTab, setActiveTab] = useState<'config' | 'prices'>('config');
+    const [activeTab, setActiveTab] = useState<'config' | 'prices' | 'users'>('config');
     const [tripDuration, setTripDuration] = useState('3');
     const [nightPrice, setNightPrice] = useState('0');
     const [startDate, setStartDate] = useState('');
@@ -37,6 +37,11 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newItem, setNewItem] = useState({ nombre: '', precio: '', unidad: '' });
 
+    // Users State
+    const [usersList, setUsersList] = useState<any[]>([]);
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'user' });
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
     // Sincronizar tripDuration con el plan actual cuando se abra el panel
     useEffect(() => {
         if (currentPlan && isOpen) {
@@ -45,6 +50,82 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
             setStartDate(currentPlan.startDate || new Date().toISOString().split('T')[0]);
         }
     }, [currentPlan, isOpen]);
+
+    // Load Users when tab active
+    useEffect(() => {
+        if (isOpen && activeTab === 'users' && role === 'admin') {
+            loadUsers();
+        }
+    }, [isOpen, activeTab, role]);
+
+    const loadUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const res = await databases.listDocuments(
+                APPWRITE_CONFIG.DATABASE,
+                'users'
+            );
+            setUsersList(res.documents);
+        } catch (e) {
+            console.error('Error loading users (collection might not exist)', e);
+            // Optionally alerts user to create collection
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const handleCreateUser = async () => {
+        if (!newUser.email || !newUser.password || !newUser.name) return alert('Completa todos los campos');
+        try {
+            setLoadingUsers(true);
+            // 1. Create Auth Account (Admin creating user)
+            // Note: account.create creates a new user, but doesn't log them in (if using Client SDK as authenticated user? Wait. 
+            // Client SDK 'create' usually throws if logged in? No, it works for 'SignUp'. 
+            // Correct way for Admin to create user without logging out is Server SDK. 
+            // BUT for Client SDK, typically we can only 'Sign Up' (implicit login often? No, explicit login required).
+            // Let's try it. If it fails, we warn.
+            try {
+                await account.create(ID.unique(), newUser.email, newUser.password, newUser.name);
+            } catch (authErr: any) {
+                console.warn('Auth creation failed (maybe user exists or permissions):', authErr);
+                if (authErr.code !== 409) { // 409 = conflict/exists
+                    alert('Error creando cuenta de Auth: ' + authErr.message);
+                    return; // Stop if crucial failure
+                }
+            }
+
+            // 2. Create Database Entry
+            await databases.createDocument(
+                APPWRITE_CONFIG.DATABASE,
+                'users',
+                ID.unique(),
+                {
+                    email: newUser.email,
+                    name: newUser.name,
+                    role: newUser.role
+                }
+            );
+
+            alert('Usuario creado correctamente');
+            setNewUser({ name: '', email: '', password: '', role: 'user' });
+            loadUsers();
+        } catch (e: any) {
+            console.error(e);
+            alert('Error creating user: ' + e.message);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    const handleDeleteUser = async (id: string, name: string) => {
+        if (!confirm(`¿Eliminar usuario ${name} (solo de la BD, no de Auth)?`)) return;
+        try {
+            await databases.deleteDocument(APPWRITE_CONFIG.DATABASE, 'users', id);
+            loadUsers();
+        } catch (e) {
+            alert('Error deleting user');
+        }
+    };
 
     const handleSaveConfig = async () => {
         setSaving(true);
@@ -156,13 +237,86 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                         onClick={() => setActiveTab('prices')}
                         className={`flex-1 px-6 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'prices' ? 'text-sky-400 bg-sky-500/5' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
                     >
-                        Base de Datos de Precios
+                        Base de Precios
                         {activeTab === 'prices' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-500" />}
                     </button>
+                    {role === 'admin' && (
+                        <button
+                            onClick={() => setActiveTab('users')}
+                            className={`flex-1 px-6 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'users' ? 'text-sky-400 bg-sky-500/5' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+                        >
+                            Usuarios
+                            {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-500" />}
+                        </button>
+                    )}
                 </div>
 
                 {/* Content */}
                 <div className="p-8 overflow-y-auto flex-1 bg-slate-900/30">
+                    {activeTab === 'users' && (
+                        <div className="space-y-8 max-w-5xl mx-auto">
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-8">
+                                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                    <Users size={18} className="text-sky-500" /> Gestionar Usuarios
+                                </h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                                    <input
+                                        type="text" placeholder="Nombre"
+                                        value={newUser.name}
+                                        onChange={e => setNewUser({ ...newUser, name: e.target.value })}
+                                        className="bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:border-sky-500 focus:outline-none"
+                                    />
+                                    <input
+                                        type="email" placeholder="Email"
+                                        value={newUser.email}
+                                        onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                                        className="bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:border-sky-500 focus:outline-none"
+                                    />
+                                    <input
+                                        type="password" placeholder="Contraseña"
+                                        value={newUser.password}
+                                        onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                        className="bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:border-sky-500 focus:outline-none"
+                                    />
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={newUser.role}
+                                            onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                                            className="bg-slate-950 border border-white/10 rounded-lg p-3 text-white flex-1 focus:border-sky-500 focus:outline-none"
+                                        >
+                                            <option value="user">Usuario</option>
+                                            <option value="admin">Administrador</option>
+                                        </select>
+                                        <Button onClick={handleCreateUser} disabled={loadingUsers}>
+                                            <Plus size={16} />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {usersList.length === 0 && <p className="text-slate-500">No se encontraron usuarios (o la colección 'users' no existe).</p>}
+                                    {usersList.map((u) => (
+                                        <div key={u.$id} className="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5">
+                                            <div>
+                                                <p className="font-bold text-white">{u.name}</p>
+                                                <p className="text-sm text-slate-500">{u.email}</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                    {u.role}
+                                                </span>
+                                                <button onClick={() => handleDeleteUser(u.$id, u.name)} className="text-slate-500 hover:text-red-400 transition-colors">
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'config' && (
                         <div className="space-y-8 max-w-2xl mx-auto">
                             <div className="bg-white/5 border border-white/5 rounded-2xl p-8">

@@ -1,7 +1,8 @@
 'use client';
 
-import { account } from '@/lib/appwrite';
+import { account, databases, APPWRITE_CONFIG } from '@/lib/appwrite';
 import { useState, useEffect, createContext, useContext } from 'react';
+import { Query } from 'appwrite';
 
 interface AuthContextType {
     user: any;
@@ -33,13 +34,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const current = await account.get();
             setUser(current);
-            // hardcoded admins as requested
-            const adminEmails = ['admin@skyblue.pro', 'usuario@skyblue.pro'];
-            if (adminEmails.includes(current.email)) {
-                setRole('admin');
-            } else {
-                setRole('user');
+
+            let assignedRole: 'admin' | 'user' | 'guest' = 'user';
+
+            try {
+                // Check role in database
+                const userDocs = await databases.listDocuments(
+                    APPWRITE_CONFIG.DATABASE,
+                    'users',
+                    [Query.equal('email', current.email)]
+                );
+                if (userDocs.documents.length > 0) {
+                    const doc = userDocs.documents[0];
+                    if (doc.role === 'admin' || doc.role === 'user') {
+                        assignedRole = doc.role as 'admin' | 'user';
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not fetch roles from DB, using fallback', err);
             }
+
+            // Hardcoded fallback for bootstrap
+            const fallbackAdmins = ['admin@skyblue.pro', 'usuario@skyblue.pro', 'admin'];
+            if (fallbackAdmins.includes(current.email) || current.email.startsWith('admin')) {
+                assignedRole = 'admin';
+            }
+
+            setRole(assignedRole);
         } catch (e) {
             setUser(null);
             setRole('guest');
