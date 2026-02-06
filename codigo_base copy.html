@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Blue Pro - Premium Trip Planner</title>
+    <!-- SDKs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
+
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0369a1;
+            --accent: #10b981;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .premium-font {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Glassmorphism */
+        .glass-card {
+            background: var(--card-bg);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px) scale(1.01);
+            border-color: rgba(14, 165, 233, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-nav {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+        }
+
+        /* Tabs */
+        .tab-active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .delay-1 {
+            animation-delay: 0.1s;
+        }
+
+        .delay-2 {
+            animation-delay: 0.2s;
+        }
+
+        .delay-3 {
+            animation-delay: 0.3s;
+        }
+
+        /* Bento Grid Specifics */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            transition: all 0.3s;
+            border: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+
+        .btn-primary:hover::after {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        /* Table Styles */
+        .premium-table thead {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .premium-table tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.2s;
+        }
+
+        .premium-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Notification Toast (Custom) */
+        #notification-host {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 selection:bg-sky-500/30">
+
+    <!-- Notification Host -->
+    <div id="notification-host"></div>
+
+    <!-- Header & Navigation -->
+    <header
+        class="max-w-6xl mx-auto px-6 py-10 flex flex-col lg:flex-row justify-between items-center gap-8 animate-slide-up">
+        <div class="text-center lg:text-left">
+            <p class="text-[10px] font-black uppercase tracking-[0.4em] text-sky-400 mb-2 opacity-80">Planificador de
+                Estancias v13</p>
+            <h1 class="text-5xl font-extrabold premium-font tracking-tight">SKY BLUE <span
+                    class="text-sky-400 italic font-light">PRO</span></h1>
+        </div>
+
+        <nav class="glass-nav p-2 flex gap-1 shadow-2xl overflow-x-auto max-w-full">
+            <button onclick="app.setTab('people')" id="tab-people"
+                class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all tab-active">
+                <i class="fa-solid fa-users mr-2"></i>Asistentes
+            </button>
+            <button onclick="app.setTab('menu')" id="tab-menu"
+                class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-utensils mr-2"></i>Menú
+            </button>
+            <button onclick="app.setTab('list')" id="tab-list"
+                class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-cart-shopping mr-2"></i>Compras
+            </button>
+            <button onclick="app.setTab('dash')" id="tab-dash"
+                class="px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-chart-pie mr-2"></i>Gastos
+            </button>
+        </nav>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 space-y-10 min-h-screen">
+
+        <!-- PREVIEW DASHBOARD (SIMULATOR) -->
+        <section
+            class="glass-card p-10 flex flex-col md:flex-row items-center justify-between gap-10 relative overflow-hidden animate-slide-up delay-1">
+            <div class="absolute top-0 right-0 w-80 h-80 bg-sky-500/10 rounded-full blur-[100px] -mr-20 -mt-20"></div>
+
+            <div class="z-10 w-full md:w-auto space-y-4">
+                <span class="text-sky-400 font-black text-[10px] uppercase tracking-widest block opacity-70">Simulador
+                    de Presupuesto</span>
+                <div class="space-y-6">
+                    <div class="flex items-end gap-3">
+                        <h2 id="pax-display" class="text-7xl font-black premium-font leading-none text-white">15</h2>
+                        <span class="text-sm font-bold text-slate-400 mb-2">ADULTOS</span>
+                    </div>
+                    <input type="range" id="pax-slider" min="10" max="30" value="15"
+                        class="w-full md:w-64 h-2 bg-slate-700 rounded-lg cursor-pointer accent-sky-500">
+                </div>
+            </div>
+
+            <div
+                class="z-10 text-center md:text-right bg-white/5 p-8 rounded-3xl backdrop-blur-md border border-white/5 min-w-[240px]">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cuota por Adulto</p>
+                <h2 id="grand-total" class="text-5xl font-black text-white">$0.00</h2>
+                <div class="flex items-center justify-center md:justify-end gap-2 mt-3 overflow-hidden">
+                    <span
+                        class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-lg border border-emerald-500/20">CASA
+                        + COMIDA</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: ATTENDEES -->
+        <section id="view-people" class="animate-slide-up delay-2">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Add Form -->
+                <div class="lg:col-span-4 space-y-8">
+                    <div class="glass-card p-8 border-l-4 border-sky-500">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="font-bold text-xl premium-font flex items-center gap-3 text-white">
+                                <span
+                                    class="w-8 h-8 bg-sky-500/20 rounded-lg flex items-center justify-center text-sky-400 text-sm">
+                                    <i class="fa-solid fa-plus"></i>
+                                </span>
+                                Agregar Miembro
+                            </h3>
+                            <button onclick="app.clearData()"
+                                class="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase tracking-tighter transition-colors">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Reiniciar
+                            </button>
+                        </div>
+                        <div class="space-y-5">
+                            <div class="group">
+                                <label
+                                    class="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest group-focus-within:text-sky-400 transition-colors">Nombre
+                                    completo</label>
+                                <input type="text" id="input-name"
+                                    class="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:border-sky-500 focus:bg-slate-800 transition-all text-white placeholder:text-slate-600"
+                                    placeholder="Ej: Carolina Pérez">
+                            </div>
+                            <div class="group">
+                                <label
+                                    class="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest group-focus-within:text-sky-400 transition-colors">Edad
+                                    aproximada</label>
+                                <input type="number" id="input-age"
+                                    class="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:border-sky-500 focus:bg-slate-800 transition-all text-white placeholder:text-slate-600"
+                                    placeholder="Ej: 28">
+                            </div>
+
+                            <div class="bg-slate-800/30 p-5 rounded-2xl border border-white/5 space-y-3">
+                                <h4 class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                                    Estructura de costos:</h4>
+                                <div class="flex items-center justify-between text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                        <span class="text-slate-400">Niños (0-5)</span>
+                                    </div>
+                                    <span class="font-bold text-emerald-400">Gratis</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                                        <span class="text-slate-400">Juniors (6-11)</span>
+                                    </div>
+                                    <span class="font-bold text-amber-400">$20.00</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div>
+                                        <span class="text-slate-400">Adultos (12+)</span>
+                                    </div>
+                                    <span class="font-bold text-sky-400">Cuota Base</span>
+                                </div>
+                            </div>
+
+                            <button onclick="app.addAttendee()"
+                                class="btn-primary w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl">
+                                Confirmar Asistencia
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-8 bg-sky-500/5 border-sky-500/20 text-center">
+                        <p class="text-xs text-slate-400 mb-6 font-bold uppercase tracking-widest">Resumen del Grupo</p>
+                        <div class="flex justify-around items-center mb-8">
+                            <div class="text-center group">
+                                <span
+                                    class="block text-3xl font-black text-white group-hover:text-sky-400 transition-colors"
+                                    id="stat-adults">0</span>
+                                <span
+                                    class="text-[8px] uppercase font-black text-slate-500 tracking-widest">Adultos</span>
+                            </div>
+                            <div class="w-px h-8 bg-white/10"></div>
+                            <div class="text-center group">
+                                <span
+                                    class="block text-3xl font-black text-white group-hover:text-amber-400 transition-colors"
+                                    id="stat-juniors">0</span>
+                                <span
+                                    class="text-[8px] uppercase font-black text-slate-500 tracking-widest">Juniors</span>
+                            </div>
+                            <div class="w-px h-8 bg-white/10"></div>
+                            <div class="text-center group">
+                                <span
+                                    class="block text-3xl font-black text-white group-hover:text-emerald-400 transition-colors"
+                                    id="stat-free">0</span>
+                                <span
+                                    class="text-[8px] uppercase font-black text-slate-500 tracking-widest">Gratis</span>
+                            </div>
+                        </div>
+                        <button onclick="app.syncPax()"
+                            class="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all w-full border border-white/10">
+                            Ver Presupuesto Real <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List -->
+                <div class="lg:col-span-8">
+                    <div class="glass-card p-1 overflow-hidden min-h-[500px]">
+                        <div class="p-8 flex justify-between items-center border-b border-white/5">
+                            <h3 class="text-xl font-bold premium-font text-white">Lista de Invitados</h3>
+                            <div class="flex items-center gap-2">
+                                <span class="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-black text-slate-400"
+                                    id="attendees-count">0 Confirmados</span>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full premium-table">
+                                <thead class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                    <tr>
+                                        <th class="px-8 py-5 text-left">Participante</th>
+                                        <th class="px-8 py-5 text-left">Edad</th>
+                                        <th class="px-8 py-5 text-left">Categoría</th>
+                                        <th class="px-8 py-5 text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendees-list" class="divide-y divide-white/5">
+                                    <tr>
+                                        <td colspan="4" class="px-8 py-20 text-center animate-pulse">
+                                            <div class="flex flex-col items-center gap-3">
+                                                <i class="fa-solid fa-users-viewfinder text-4xl text-slate-700"></i>
+                                                <p class="text-sm font-medium text-slate-500">Aún no hay participantes
+                                                    registrados</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: MENU (Enhanced) -->
+        <section id="view-menu" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8 animate-slide-up">
+            <!-- Day 1 -->
+            <div class="glass-card p-10 relative overflow-hidden group">
+                <div
+                    class="absolute -top-10 -right-10 w-40 h-40 bg-slate-500/10 rounded-full blur-[40px] group-hover:bg-slate-500/20 transition-all">
+                </div>
+                <div class="flex items-center justify-between mb-8">
+                    <div
+                        class="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 text-xl border border-white/5 shadow-inner">
+                        <i class="fa-solid fa-moon"></i>
+                    </div>
+                    <span class="text-xs font-black uppercase tracking-widest text-slate-500">Día 1</span>
+                </div>
+                <h3 class="text-2xl font-black text-white mb-6 premium-font">Viernes</h3>
+                <div class="bg-slate-800/50 p-6 rounded-3xl border-l-4 border-slate-500">
+                    <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Cena de Bienvenida
+                    </p>
+                    <p class="font-bold text-white text-lg mb-2">Carne Asada + Arepas</p>
+                    <p class="text-xs text-sky-400 flex items-center gap-2">
+                        <i class="fa-solid fa-glass-water"></i> Limón con Raspadura
+                    </p>
+                </div>
+            </div>
+
+            <!-- Day 2 -->
+            <div class="glass-card p-10 border-t-4 border-sky-500 relative overflow-hidden group">
+                <div
+                    class="absolute -top-10 -right-10 w-40 h-40 bg-sky-500/10 rounded-full blur-[40px] group-hover:bg-sky-500/20 transition-all">
+                </div>
+                <div class="flex items-center justify-between mb-8">
+                    <div
+                        class="w-12 h-12 bg-sky-500/20 rounded-2xl flex items-center justify-center text-sky-400 text-xl border border-sky-500/20 shadow-inner">
+                        <i class="fa-solid fa-sun"></i>
+                    </div>
+                    <span class="text-xs font-black uppercase tracking-widest text-sky-500/70">Día 2</span>
+                </div>
+                <h3 class="text-2xl font-black text-white mb-6 premium-font">Sábado</h3>
+                <div class="space-y-4">
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                        <span class="text-[8px] font-black text-slate-500 uppercase block mb-1">Desayuno</span>
+                        <p class="font-bold text-slate-200 text-sm">Huevo, Tocino, Choripán</p>
+                    </div>
+                    <div class="bg-sky-500/10 p-4 rounded-2xl border border-sky-500/20">
+                        <span class="text-[8px] font-black text-sky-400 uppercase block mb-1">Almuerzo Central</span>
+                        <p class="font-bold text-sky-100 text-sm">Sopa de Rabo Premium</p>
+                    </div>
+                    <div class="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20">
+                        <span class="text-[8px] font-black text-amber-400 uppercase block mb-1">Snack de Tarde</span>
+                        <p class="font-bold text-amber-100 text-sm">Tuna, Quesos y Galletas</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border-l-4 border-sky-500">
+                        <span class="text-[8px] font-black text-slate-500 uppercase block mb-1">Cena</span>
+                        <p class="font-bold text-slate-200 text-sm">Pollo Asado + Yuca al Mojo</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Day 3 -->
+            <div class="glass-card p-10 relative overflow-hidden group">
+                <div
+                    class="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-[40px] group-hover:bg-emerald-500/20 transition-all">
+                </div>
+                <div class="flex items-center justify-between mb-8">
+                    <div
+                        class="w-12 h-12 bg-emerald-800/20 rounded-2xl flex items-center justify-center text-emerald-400 text-xl border border-emerald-500/20 shadow-inner">
+                        <i class="fa-solid fa-person-walking-luggage"></i>
+                    </div>
+                    <span class="text-xs font-black uppercase tracking-widest text-emerald-500/70">Día 3</span>
+                </div>
+                <h3 class="text-2xl font-black text-white mb-6 premium-font">Domingo</h3>
+                <div class="bg-emerald-500/10 p-6 rounded-3xl border-l-4 border-emerald-500">
+                    <p class="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-2">Desayuno de Salida
+                    </p>
+                    <p class="font-bold text-white text-lg">Hojaldre + Costillitas</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: LIST (SHOPPING - Bento Style) -->
+        <section id="view-list" class="hidden grid grid-cols-1 md:grid-cols-3 gap-8 animate-slide-up">
+            <div id="col-neri"></div>
+            <div id="col-merca"></div>
+            <div id="col-xtra"></div>
+        </section>
+
+        <!-- VIEW: DASHBOARD (DETAILED COSTS) -->
+        <section id="view-dash" class="hidden animate-slide-up">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8">
+
+                <!-- CARD 1: HOSPEDAJE -->
+                <div class="lg:col-span-4 glass-card p-10 border-l-4 border-emerald-500 bg-emerald-500/[0.02]">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div
+                            class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-xl shadow-lg border border-emerald-500/20">
+                            <i class="fa-solid fa-house"></i>
+                        </div>
+                        <h3 class="font-black text-white uppercase tracking-widest text-xs">Gasto Hospedaje</h3>
+                    </div>
+
+                    <div class="space-y-4 border-b border-white/5 pb-8 mb-8">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-400">Presupuesto Base:</span>
+                            <span class="text-white" id="detail-house-total">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-xs font-medium text-emerald-400">
+                            <span>Aporte Juniors:</span>
+                            <span id="detail-junior-contribution">-$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black text-white pt-4 border-t border-white/5">
+                            <span>A cubrir:</span>
+                            <span id="detail-house-remaining" class="text-emerald-400">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center py-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                        <p class="text-[9px] font-black uppercase text-emerald-500 tracking-[0.2em] mb-2">Cuota Casa p/p
+                        </p>
+                        <h2 id="final-house-per-adult" class="text-4xl font-black text-white premium-font">$0.00</h2>
+                    </div>
+                </div>
+
+                <!-- CARD 2: COMIDA -->
+                <div class="lg:col-span-4 glass-card p-10 border-l-4 border-sky-500 bg-sky-500/[0.02]">
+                    <div class="flex items-center gap-4 mb-8">
+                        <div
+                            class="w-12 h-12 bg-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center text-xl shadow-lg border border-sky-500/20">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
+                        <h3 class="font-black text-white uppercase tracking-widest text-xs">Gasto Alimentación</h3>
+                    </div>
+
+                    <div class="space-y-4 border-b border-white/5 pb-8 mb-8">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-400">Total Súper:</span>
+                            <span class="text-white" id="detail-food-total">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold italic text-sky-400/70">
+                            <span>Base de división:</span>
+                            <span id="detail-adult-count">0 Adultos</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black text-white pt-4 border-t border-white/5">
+                            <span>Cuota Super:</span>
+                            <span id="final-food-per-adult" class="text-sky-400">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="p-6 bg-sky-500/5 rounded-2xl border border-sky-500/10">
+                        <p class="text-[9px] font-black uppercase text-sky-400 tracking-[0.2em] mb-2 text-center">
+                            Inversión en comida p/p</p>
+                        <h2 id="final-food-per-adult-copy"
+                            class="text-4xl font-black text-white text-center premium-font">$0.00</h2>
+                    </div>
+                </div>
+
+                <!-- CARD 3: TOTAL HIGHLIGHT -->
+                <div
+                    class="lg:col-span-4 glass-card p-10 bg-gradient-to-br from-sky-600 to-sky-900 border-none flex flex-col justify-between overflow-hidden relative">
+                    <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                    <div>
+                        <p class="text-[10px] font-black text-sky-200 uppercase tracking-[0.3em] mb-2">Total Final
+                            Estimado</p>
+                        <h3 class="text-xs text-sky-100/60 font-medium">Monto total por asistente adulto para toda la
+                            estancia</h3>
+                    </div>
+                    <div class="mt-10">
+                        <h2 id="final-adult-total"
+                            class="text-7xl font-black text-white premium-font leading-none tracking-tighter">$0.00</h2>
+                        <p class="text-[10px] font-bold text-sky-300 mt-4 uppercase tracking-[0.2em]">Todo incluido
+                            (Casa + Comida)</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 mt-32 py-20 px-6 border-t border-white/5 relative overflow-hidden">
+        <div
+            class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-sky-500/50 to-transparent">
+        </div>
+        <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12">
+            <div class="flex items-center gap-6">
+                <div
+                    class="w-16 h-16 bg-sky-500 rounded-3xl flex items-center justify-center text-white text-3xl shadow-2xl shadow-sky-500/20">
+                    <i class="fa-solid fa-location-dot"></i>
+                </div>
+                <div class="text-center lg:text-left">
+                    <p class="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] mb-2">Destino Confirmado
+                    </p>
+                    <h3 class="text-3xl font-bold text-white premium-font">Sky Blue Portobelo</h3>
+                    <p class="text-sm text-slate-400 mt-1">Colón, Costa Arriba de Panamá</p>
+                </div>
+            </div>
+
+            <a href="https://maps.app.goo.gl/eEo8BsvCHUcth5sT7" target="_blank"
+                class="group bg-white text-slate-950 px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-sky-50 transition-all flex items-center gap-3 shadow-2xl hover:scale-105 active:scale-95">
+                Ver mapas <i
+                    class="fa-solid fa-arrow-up-right-from-square group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
+            </a>
+        </div>
+        <div class="max-w-6xl mx-auto mt-20 pt-10 border-t border-white/5 text-center">
+            <p class="text-[9px] text-slate-600 font-bold uppercase tracking-[0.5em]">
+                Sky Blue OS v13.5 • Powered by Appwrite Cloud
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // --- Appwrite Configuration (To be filled by user) ---
+        const sdk = new Appwrite.Client();
+        const databases = new Appwrite.Databases(sdk);
+        const account = new Appwrite.Account(sdk);
+
+        const APPWRITE_CONFIG = {
+            ENDPOINT: 'https://varios-appwrite.fjueze.easypanel.host/v1',
+            PROJECT: '69842e9b00385ac6284b',
+            DATABASE: '698433900010ddd7e267',
+            COLLECTION: 'asistentes'
+        };
+
+        const app = {
+            pax: 15,
+            attendees: [],
+            simAdults: 15,
+            isCloudEnabled: false,
+
+            prices: {
+                lodgingBase: 430, extraPax: 20,
+                costillon: 4.50, rabo: 4.80, costillaPuerco: 4.00, chorizos: 0.65,
+                yuca: 0.40, platanos: 0.30, limones: 0.10, rapadura: 1.25, kitVerdura: 8.00,
+                pollo: 1.00, arroz: 0.60, huevo: 0.16, tocino: 4.25, pan: 0.20,
+                tuna: 1.50, quesoCrema: 2.50, mermelada: 3.00, galletas: 1.75, spuff: 1.50,
+                quesoBlanco: 4.50, mantequilla: 3.50, harina: 1.50, aceite: 6.00, varios: 25.00
+            },
+
+            async init() {
+                this.initAppwrite();
+                await this.loadData();
+
+                const slider = document.getElementById('pax-slider');
+                slider.addEventListener('input', (e) => {
+                    this.simAdults = parseInt(e.target.value);
+                    this.pax = this.simAdults;
+                    this.updateSimulator();
+                });
+
+                this.renderAttendees();
+                this.updateSimulator();
+            },
+
+            initAppwrite() {
+                if (APPWRITE_CONFIG.ENDPOINT && APPWRITE_CONFIG.PROJECT) {
+                    sdk.setEndpoint(APPWRITE_CONFIG.ENDPOINT).setProject(APPWRITE_CONFIG.PROJECT);
+                    this.isCloudEnabled = true;
+                    console.log("☁️ Appwrite Cloud Enabled");
+                    this.notify("Conectado a la nube", "success");
+                }
+            },
+
+            async loadData() {
+                // Try cloud first if enabled
+                if (this.isCloudEnabled) {
+                    try {
+                        const response = await databases.listDocuments(APPWRITE_CONFIG.DATABASE, APPWRITE_CONFIG.COLLECTION);
+                        this.attendees = response.documents.map(doc => ({
+                            id: doc.$id,
+                            name: doc.name,
+                            age: doc.age
+                        }));
+                    } catch (e) {
+                        console.error("Cloud load failed", e);
+                        this.loadLocal();
+                    }
+                } else {
+                    this.loadLocal();
+                }
+            },
+
+            loadLocal() {
+                const savedData = localStorage.getItem('skyBlueAttendees');
+                if (savedData) this.attendees = JSON.parse(savedData);
+            },
+
+            async saveData() {
+                localStorage.setItem('skyBlueAttendees', JSON.stringify(this.attendees));
+
+                if (this.isCloudEnabled) {
+                    // Logic to sync would go here (or per-action sync)
+                    console.log("Syncing to cloud...");
+                }
+            },
+
+            async clearData() {
+                if (confirm('¿Estás seguro de reiniciar toda la lista?')) {
+                    this.attendees = [];
+                    await this.saveData();
+                    if (this.isCloudEnabled) {
+                        // Logic to clear cloud collection
+                    }
+                    this.renderAttendees();
+                    this.updateSimulator();
+                    this.notify("Datos reiniciados", "info");
+                }
+            },
+
+            setTab(tab) {
+                ['people', 'menu', 'list', 'dash'].forEach(t => {
+                    const el = document.getElementById(`view-${t}`);
+                    const btn = document.getElementById(`tab-${t}`);
+                    if (t === tab) {
+                        el.classList.remove('hidden');
+                        btn.classList.add('tab-active');
+                        btn.classList.remove('text-slate-400');
+                    } else {
+                        el.classList.add('hidden');
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('text-slate-400', 'hover:text-white');
+                    }
+                });
+            },
+
+            async addAttendee() {
+                const nameInput = document.getElementById('input-name');
+                const ageInput = document.getElementById('input-age');
+                const name = nameInput.value.trim();
+                const age = parseInt(ageInput.value);
+
+                if (name && !isNaN(age)) {
+                    const newPerson = { name, age, id: Date.now().toString() };
+
+                    if (this.isCloudEnabled) {
+                        try {
+                            const doc = await databases.createDocument(
+                                APPWRITE_CONFIG.DATABASE,
+                                APPWRITE_CONFIG.COLLECTION,
+                                'unique()',
+                                { name, age }
+                            );
+                            newPerson.id = doc.$id;
+                        } catch (e) {
+                            this.notify("Error al guardar en la nube", "error");
+                        }
+                    }
+
+                    this.attendees.push(newPerson);
+                    await this.saveData();
+                    nameInput.value = '';
+                    ageInput.value = '';
+                    this.renderAttendees();
+                    this.notify(`${name} agregado correctamente`, "success");
+                } else {
+                    this.notify("Por favor completa los campos", "error");
+                }
+            },
+
+            async removeAttendee(id, index) {
+                if (this.isCloudEnabled && id) {
+                    try {
+                        await databases.deleteDocument(APPWRITE_CONFIG.DATABASE, APPWRITE_CONFIG.COLLECTION, id);
+                    } catch (e) {
+                        this.notify("Error al eliminar de la nube", "error");
+                    }
+                }
+
+                this.attendees.splice(index, 1);
+                await this.saveData();
+                this.renderAttendees();
+            },
+
+            renderAttendees() {
+                const list = document.getElementById('attendees-list');
+                const adults = this.attendees.filter(p => p.age >= 12).length;
+                const juniors = this.attendees.filter(p => p.age > 5 && p.age < 12).length;
+                const free = this.attendees.filter(p => p.age <= 5).length;
+
+                document.getElementById('stat-adults').innerText = adults;
+                document.getElementById('stat-juniors').innerText = juniors;
+                document.getElementById('stat-free').innerText = free;
+                document.getElementById('attendees-count').innerText = `${this.attendees.length} Confirmados`;
+
+                if (this.attendees.length === 0) {
+                    list.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center"><div class="flex flex-col items-center gap-3 opacity-30"><i class="fa-solid fa-users-viewfinder text-4xl"></i><p class="text-sm">Aún no hay participantes registrados</p></div></td></tr>`;
+                    return;
+                }
+
+                list.innerHTML = this.attendees.map((person, index) => {
+                    let badge = '';
+                    if (person.age <= 5) badge = `<span class="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg text-[10px] font-black border border-emerald-500/20">GRATIS</span>`;
+                    else if (person.age < 12) badge = `<span class="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-lg text-[10px] font-black border border-amber-500/20">JUNIOR ($20)</span>`;
+                    else badge = `<span class="bg-sky-500/10 text-sky-400 px-3 py-1 rounded-lg text-[10px] font-black border border-sky-500/20">ADULTO</span>`;
+
+                    return `
+                        <tr class="animate-slide-up" style="animation-delay: ${index * 0.05}s">
+                            <td class="px-8 py-5 font-bold text-white">${person.name}</td>
+                            <td class="px-8 py-5 text-slate-400 font-medium">${person.age} años</td>
+                            <td class="px-8 py-5">${badge}</td>
+                            <td class="px-8 py-5 text-right">
+                                <button onclick="app.removeAttendee('${person.id}', ${index})" class="text-slate-500 hover:text-red-400 transition-all p-2 hover:bg-red-400/10 rounded-xl"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            syncPax() {
+                const adults = this.attendees.filter(p => p.age >= 12).length;
+                const juniors = this.attendees.filter(p => p.age > 5 && p.age < 12).length;
+                const totalOccupancy = this.attendees.length;
+
+                if (totalOccupancy === 0) {
+                    this.notify("Agrega personas a la lista primero", "info");
+                    return;
+                }
+                this.calculateBudget(adults, juniors, totalOccupancy);
+                this.setTab('dash');
+            },
+
+            updateSimulator() {
+                document.getElementById('pax-display').innerText = this.simAdults;
+                this.calculateBudget(this.simAdults, 0, this.simAdults);
+            },
+
+            calculateBudget(adultCount, juniorCount, totalOccupancy) {
+                const extras = Math.max(0, totalOccupancy - 10);
+                const lodgingTotal = 430 + (extras * 20);
+                const foodTotal = this.calculateFoodCost(totalOccupancy);
+                const juniorContribution = juniorCount * 20.00;
+                const houseRemaining = lodgingTotal - juniorContribution;
+                const housePerAdult = adultCount > 0 ? (houseRemaining / adultCount) : 0;
+                const foodPerAdult = adultCount > 0 ? (foodTotal / adultCount) : 0;
+                const totalPerAdult = housePerAdult + foodPerAdult;
+
+                // Header & Summary
+                document.getElementById('grand-total').innerText = `$${totalPerAdult.toFixed(2)}`;
+                document.getElementById('final-adult-total').innerText = `$${totalPerAdult.toFixed(2)}`;
+
+                // Dashboard Detailed
+                document.getElementById('detail-house-total').innerText = `$${lodgingTotal.toFixed(2)}`;
+                document.getElementById('detail-junior-contribution').innerText = `-$${juniorContribution.toFixed(2)}`;
+                document.getElementById('detail-house-remaining').innerText = `$${houseRemaining.toFixed(2)}`;
+                document.getElementById('final-house-per-adult').innerText = `$${housePerAdult.toFixed(2)}`;
+
+                document.getElementById('detail-food-total').innerText = `$${foodTotal.toFixed(2)}`;
+                document.getElementById('detail-adult-count').innerText = `${adultCount} Adultos`;
+                document.getElementById('final-food-per-adult').innerText = `$${foodPerAdult.toFixed(2)}`;
+                document.getElementById('final-food-per-adult-copy').innerText = `$${foodPerAdult.toFixed(2)}`;
+
+                this.renderShoppingList(totalOccupancy);
+            },
+
+            calculateFoodCost(pax) {
+                let t = 0;
+                t += (pax * 0.7 * this.prices.costillon);
+                t += (pax * 1.0 * this.prices.rabo);
+                t += (pax * 0.7 * this.prices.costillaPuerco);
+                t += (pax * 1.0 * this.prices.chorizos);
+                t += (pax * 0.5 * this.prices.yuca);
+                t += (pax * 1.0 * this.prices.platanos);
+                t += (Math.ceil(pax * 2.5) * this.prices.limones);
+                t += (4 * this.prices.rapadura);
+                t += this.prices.kitVerdura;
+                const chickenPieces = Math.ceil(pax * 1.35);
+                t += (chickenPieces * this.prices.pollo);
+                t += (pax * 2 * this.prices.huevo);
+                t += (Math.ceil(pax / 4) * this.prices.tocino);
+                t += (Math.ceil(pax * 0.5) * this.prices.arroz);
+                t += (pax * 1.2 * this.prices.pan);
+                t += (Math.ceil(pax * 0.4) * this.prices.tuna);
+                t += 15.00;
+                t += this.prices.aceite + (3 * this.prices.harina) + this.prices.quesoBlanco + (2 * this.prices.mantequilla);
+                t += this.prices.varios;
+                return t;
+            },
+
+            renderShoppingList(pax) {
+                if (!pax) pax = 15;
+                const chickenPieces = Math.ceil(pax * 1.35);
+
+                const getCard = (title, icon, color, items) => `
+                    <div class="glass-card overflow-hidden">
+                        <div class="bg-white/5 px-6 py-4 border-b border-white/5 flex justify-between items-center">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">${title}</span>
+                            <i class="fa-solid ${icon} ${color}"></i>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            ${items.map(i => `
+                                <div class="flex justify-between items-center border-b border-white/5 pb-2 last:border-0">
+                                    <span class="text-xs font-bold text-slate-200">${i.n}</span>
+                                    <span class="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-lg text-slate-400 border border-white/5">${i.q}</span>
+                                </div>`).join('')}
+                        </div>
+                    </div>`;
+
+                document.getElementById('col-neri').innerHTML = getCard("San Felipe Neri", "fa-cow", "text-red-400", [
+                    { n: "Costillón (Viernes)", q: (pax * 0.7).toFixed(1) + " LB" },
+                    { n: "Rabo Res (Sopa)", q: (pax * 1.0).toFixed(1) + " LB" },
+                    { n: "Costillitas Puerco", q: (pax * 0.7).toFixed(1) + " LB" },
+                    { n: "Chorizos (Desayuno)", q: pax + " UD" }
+                ]);
+
+                document.getElementById('col-merca').innerHTML = getCard("Merca Panamá", "fa-leaf", "text-emerald-400", [
+                    { n: "Yuca (Mojo)", q: Math.ceil(pax * 0.5) + " LB" },
+                    { n: "Plátano Maduro", q: Math.ceil(pax * 1.0) + " UD" },
+                    { n: "Limones", q: Math.ceil(pax * 2.5) + " UD" },
+                    { n: "Rapadura", q: "4 BL" },
+                    { n: "Olores/Ajo/Culantro", q: "1 KIT" }
+                ]);
+
+                document.getElementById('col-xtra').innerHTML = getCard("Super Xtra", "fa-cart-shopping", "text-sky-400", [
+                    { n: "Muslo Encuentro", q: chickenPieces + " PZS" },
+                    { n: "Huevos / Tocino", q: "1 KIT" },
+                    { n: "Pan (Chori/Tuna)", q: "3 BOLSAS" },
+                    { n: "Arroz", q: Math.ceil(pax * 0.5) + " LB" },
+                    { n: "Tuna/Queso C./Mermelada", q: "KIT SNACK" },
+                    { n: "Galletas/Spuff", q: "VARIOS" },
+                    { n: "Harina/Queso/Manteq.", q: "KIT MASA" }
+                ]);
+            },
+
+            notify(msg, type = 'info') {
+                const host = document.getElementById('notification-host');
+                const colors = {
+                    success: 'bg-emerald-500 border-emerald-400',
+                    error: 'bg-red-500 border-red-400',
+                    info: 'bg-sky-500 border-sky-400'
+                };
+
+                const toast = document.createElement('div');
+                toast.className = `${colors[type]} text-white px-6 py-4 rounded-2xl shadow-2xl border-b-4 flex items-center gap-3 animate-slide-up mb-3 font-bold text-sm backdrop-blur-md`;
+                toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i> ${msg}`;
+
+                host.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(20px)';
+                    setTimeout(() => toast.remove(), 500);
+                }, 3000);
+            }
+        };
+
+        window.onload = () => app.init();
+    </script>
+</body>
+
+</html>
