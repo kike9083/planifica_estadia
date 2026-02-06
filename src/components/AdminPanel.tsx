@@ -19,16 +19,16 @@ interface AdminPanelProps {
     updatePlanConfig: (config: { duration?: number, nightPrice?: number, startDate?: string }) => Promise<boolean>;
     onUpdatePrices: () => void;
     currentPlan: any;
+    isOpen?: boolean;
+    onClose?: () => void;
 }
 
-export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, addPriceItem, deletePriceItem, updatePlanConfig, onUpdatePrices, currentPlan }: AdminPanelProps) => {
+export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, addPriceItem, deletePriceItem, updatePlanConfig, onUpdatePrices, currentPlan, isOpen = false, onClose }: AdminPanelProps) => {
     const { role, user } = useAuth();
-    const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'config' | 'prices'>('config');
     const [tripDuration, setTripDuration] = useState('3');
     const [nightPrice, setNightPrice] = useState('0');
     const [startDate, setStartDate] = useState('');
-    const [configId, setConfigId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [priceCategory, setPriceCategory] = useState<'meat' | 'super' | 'veggies'>('meat');
 
@@ -40,7 +40,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
     // Sincronizar tripDuration con el plan actual cuando se abra el panel
     useEffect(() => {
         if (currentPlan && isOpen) {
-            setTripDuration(currentPlan.tripDuration.toString());
+            setTripDuration(currentPlan.tripDuration?.toString() || '3');
             setNightPrice((currentPlan.nightPrice || 0).toString());
             setStartDate(currentPlan.startDate || new Date().toISOString().split('T')[0]);
         }
@@ -56,7 +56,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
             });
             if (success) {
                 alert('Configuración del plan actualizada correctamente');
-                setIsOpen(false);
+                if (onClose) onClose();
             } else {
                 alert('Error al guardar configuración');
             }
@@ -122,22 +122,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
 
     const { items: currentItems, collection, color } = getItems();
 
-    if (!isOpen) {
-        // Now accessible to everyone logged in
-        if (!user) return null;
-
-        return (
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-4 right-4 z-50 bg-slate-800/90 p-3 rounded-full text-slate-400 hover:text-white border border-white/10 hover:bg-slate-700 transition-all shadow-xl hover:shadow-sky-500/20 group"
-                aria-label="Abrir Ajustes de Plan"
-                title="Configuración del Plan"
-            >
-                <div className="absolute inset-0 bg-sky-500/20 rounded-full blur-md group-hover:blur-lg transition-all" />
-                <Settings size={24} className="relative z-10" />
-            </button>
-        );
-    }
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -153,7 +138,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Personaliza tu estancia</p>
                         </div>
                     </div>
-                    <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors" aria-label="Cerrar panel">
+                    <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors" aria-label="Cerrar panel">
                         <X size={24} />
                     </button>
                 </div>
