@@ -115,14 +115,18 @@ export default function App() {
                                 setSimAdults={setSimAdults}
                             />
 
-                            <div className="mt-20">
-                                <div className="flex flex-col items-center mb-10">
-                                    <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.4em] mb-4">Gestión de Grupo</h3>
-                                    <div className="h-px w-20 bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
+                            <div className="mt-24 mb-12">
+                                <div className="flex flex-col items-center">
+                                    <h3 className="text-xs font-black text-sky-500 uppercase tracking-[0.5em] mb-4">Gestión de Grupo</h3>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-px w-12 bg-gradient-to-r from-transparent to-sky-500/30" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)]" />
+                                        <div className="h-px w-12 bg-gradient-to-l from-transparent to-sky-500/30" />
+                                    </div>
                                 </div>
-                                <AttendeeForm onAdd={addAttendee} />
-                                <AttendeeList attendees={attendees} onRemove={removeAttendee} onUpdate={updateAttendee} />
                             </div>
+                            <AttendeeForm onAdd={addAttendee} />
+                            <AttendeeList attendees={attendees} onRemove={removeAttendee} onUpdate={updateAttendee} />
                         </motion.div>
                     )}
 
@@ -198,13 +202,15 @@ export default function App() {
             </main>
 
             {/* Active Plan Name indicator */}
-            {currentPlan && (
-                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 animate-fade-in pointer-events-none">
-                    <span className="bg-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-sky-500/30 backdrop-blur-md">
-                        {currentPlan.nombre}
-                    </span>
-                </div>
-            )}
+            {
+                currentPlan && (
+                    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 animate-fade-in pointer-events-none">
+                        <span className="bg-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-sky-500/30 backdrop-blur-md">
+                            {currentPlan.nombre}
+                        </span>
+                    </div>
+                )
+            }
 
             {/* Floating UI */}
             <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -223,6 +229,6 @@ export default function App() {
 
             {/* Forced Login View */}
             {!user && !authLoading && <LoginModal onClose={() => { }} />}
-        </div>
+        </div >
     );
 }
