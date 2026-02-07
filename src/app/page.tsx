@@ -53,9 +53,13 @@ export default function App() {
 
     const { user, loading: authLoading, userName, role, logout } = useAuth();
 
-    // Use simAdults but prioritize real confirmed count if it's higher or if we want precision
-    const peopleToUse = Math.max(stats.people, simAdults);
-    const currentBudget = calculateBudget(peopleToUse, peopleToUse);
+    // Logic: extra simulated people are treated as adults. 
+    // If simAdults is 12 and we have 12 real people (11 adults + 1 kid), extra is 0.
+    const extraSimulated = Math.max(0, simAdults - stats.people);
+    const peopleToUse = stats.people + extraSimulated;
+    const adultsToUse = stats.adults + extraSimulated;
+
+    const currentBudget = calculateBudget(peopleToUse, adultsToUse, stats.total + extraSimulated);
 
     return (
         <DashboardLayout

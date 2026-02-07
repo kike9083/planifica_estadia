@@ -21,10 +21,17 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                 </div>
 
                 <div className="mb-6 flex gap-2 flex-wrap">
-                    <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-slate-400 border border-white/5">
-                        {budget?.peopleUsed || 0} PERSONAS (PAGAN)
-                    </span>
-                    <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-emerald-500/70 border border-emerald-500/10">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-slate-400 border border-white/5">
+                            {budget?.adultsUsed || 0} ADULTOS (≥12)
+                        </span>
+                        {(budget?.peopleUsed - budget?.adultsUsed > 0) && (
+                            <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-slate-400 border border-white/5">
+                                {budget?.peopleUsed - budget?.adultsUsed} NIÑOS (6-11)
+                            </span>
+                        )}
+                    </div>
+                    <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-emerald-500/70 border border-emerald-500/10 h-fit">
                         {stats?.free || 0} {"GRATUITOS (≤5)"}
                     </span>
                 </div>
@@ -80,8 +87,8 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                         <span className="text-white">${(budget?.foodTotal || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs font-bold italic text-sky-400/70">
-                        <span>Base de división:</span>
-                        <span>{budget?.peopleUsed || 0} Personas</span>
+                        <span>Base de división (Adultos ≥ 12):</span>
+                        <span>{budget?.adultsUsed || 0} Personas</span>
                     </div>
                     <div className="flex justify-between text-base font-black text-white pt-4 border-t border-white/5">
                         <span>Cuota Super:</span>
@@ -94,6 +101,9 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                         Inversión en comida p/p
                     </p>
                     <h2 className="text-4xl font-black text-white text-center tracking-tight">${budget.foodPerPerson.toFixed(2)}</h2>
+                    <p className="text-[9px] text-slate-500 mt-1 font-bold italic text-center">
+                        (${(budget?.foodTotal || 0).toFixed(2)} ÷ {budget?.adultsUsed || 1} adultos)
+                    </p>
                 </div>
             </GlassCard>
 
@@ -101,12 +111,18 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
             <GlassCard className="lg:col-span-4 p-10 bg-gradient-to-br from-sky-600 to-sky-900 border-none flex flex-col justify-between overflow-hidden relative">
                 <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                 <div>
-                    <p className="text-[10px] font-black text-sky-200 uppercase tracking-[0.3em] mb-2">Cuota Estimada</p>
+                    <p className="text-[10px] font-black text-sky-200 uppercase tracking-[0.3em] mb-2">Cuotas Estimadas</p>
                     <div className="space-y-4 mt-6">
                         <div className="relative z-10">
                             <h2 className="text-5xl font-black text-white leading-none tracking-tighter">${(budget?.totalPerPerson || 0).toFixed(2)}</h2>
-                            <p className="text-[10px] font-bold text-sky-300 mt-2 uppercase tracking-[0.2em]">Costo Final por Persona</p>
+                            <p className="text-[10px] font-bold text-sky-300 mt-2 uppercase tracking-[0.2em]">Total x Adulto (hosp+comida)</p>
                         </div>
+                        {(budget?.peopleUsed - budget?.adultsUsed > 0) && (
+                            <div className="relative z-10 pt-4 border-t border-white/10">
+                                <h2 className="text-3xl font-black text-sky-200 leading-none tracking-tighter">${(budget?.housePerPerson || 0).toFixed(2)}</h2>
+                                <p className="text-[9px] font-bold text-sky-400 mt-2 uppercase tracking-[0.2em]">Total x Niño 6-11 (solo hosp)</p>
+                            </div>
+                        )}
                         <div className="relative z-10 pt-4 border-t border-white/10">
                             <h2 className="text-3xl font-black text-sky-200 leading-none tracking-tighter">
                                 {budget?.isIndependent ? `$${(budget?.extraFeePerPerson || 0).toFixed(2)}` : (budget?.overLimitCount || 0)}

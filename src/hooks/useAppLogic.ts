@@ -222,6 +222,7 @@ export const useAppLogic = () => {
 
     const stats = {
         people: attendees.filter(a => a.age > 5).length,
+        adults: attendees.filter(a => a.age >= 12).length,
         free: attendees.filter(a => a.age <= 5).length,
         total: attendees.length
     };
@@ -243,7 +244,7 @@ export const useAppLogic = () => {
         return 1.0;
     };
 
-    const calculateBudget = (peopleCount: number, totalPax: number) => {
+    const calculateBudget = (peopleCount: number, adultsCount: number, totalPax: number) => {
         const p = dbPrices || { meat: {}, super: {}, veggies: {} };
         const nights = Math.max(0, (currentPlan?.tripDuration || 3) - 1);
 
@@ -306,7 +307,7 @@ export const useAppLogic = () => {
             ? (baseCapacity > 0 ? (lodgingBaseTotal / baseCapacity) : 0)
             : (peopleCount > 0 ? (totalLodgingToCover / peopleCount) : 0);
 
-        const foodPerPerson = peopleCount > 0 ? (foodTotal / peopleCount) : 0;
+        const foodPerPerson = adultsCount > 0 ? (foodTotal / adultsCount) : 0;
         const extraFeePerPerson = extraFee * nights;
 
         return {
@@ -328,6 +329,7 @@ export const useAppLogic = () => {
             extraFeePerPerson,
             totalPerPerson: housePerPerson + foodPerPerson,
             peopleUsed: peopleCount,
+            adultsUsed: adultsCount,
             overLimitCount,
             isOverMax,
             maxCapacity,
@@ -339,10 +341,10 @@ export const useAppLogic = () => {
     const saveOperation = async () => {
         if (!user || !currentPlan) return false;
         try {
-            const currentBudget = calculateBudget(stats.people, stats.total);
+            const currentBudget = calculateBudget(stats.people, stats.adults, stats.total);
             const data = {
                 pax: stats.total,
-                presupuesto_total: currentBudget.totalPerPerson * stats.people,
+                presupuesto_total: currentBudget.totalLodgingToCover + currentBudget.foodTotal,
                 userId: user.$id,
                 planId: currentPlan.$id,
                 detalles_json: JSON.stringify({

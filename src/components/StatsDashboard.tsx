@@ -38,7 +38,7 @@ export const StatsDashboard = ({ stats, budget, simAdults, setSimAdults, simulat
                                         animate={{ scale: 1, opacity: 1 }}
                                         className="text-8xl font-black text-white leading-none tracking-tighter"
                                     >
-                                        {simAdults}
+                                        {budget?.peopleUsed || simAdults}
                                     </motion.h2>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Personas</span>
@@ -111,7 +111,19 @@ export const StatsDashboard = ({ stats, budget, simAdults, setSimAdults, simulat
                                     <div key={i} className="bg-white/5 border border-white/5 p-6 rounded-3xl hover:bg-white/10 transition-colors">
                                         <item.icon className={`text-${item.color}-400 mb-4`} size={20} />
                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</p>
-                                        <p className="text-2xl font-black text-white">{item.value}</p>
+                                        <p className="text-2xl font-black text-white">
+                                            {item.label === 'Total PAX' ? stats.total : stats.free}
+                                        </p>
+                                        {item.label === 'Total PAX' && (
+                                            <div className="mt-2 flex flex-col gap-0.5">
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                    {stats.adults} Adultos (pagan comida)
+                                                </span>
+                                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                    {stats.people - stats.adults} Niños 6-11 (solo hosp)
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -185,14 +197,23 @@ export const StatsDashboard = ({ stats, budget, simAdults, setSimAdults, simulat
                             <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl">
                                 <div className="flex items-center gap-3">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                    <span className="text-[10px] font-black text-slate-300 uppercase">Comida</span>
+                                    <span className="text-[10px] font-black text-slate-300 uppercase italic">Adultos (Hosp+Comida)</span>
                                 </div>
-                                <span className="text-sm font-black text-white">${(budget?.foodPerPerson || 0).toFixed(2)}</span>
+                                <span className="text-sm font-black text-white">${(budget?.totalPerPerson || 0).toFixed(2)}</span>
                             </div>
+                            {(budget?.peopleUsed - budget?.adultsUsed > 0) && (
+                                <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-orange-500/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Niños 6-11 (Solo Hosp)</span>
+                                    </div>
+                                    <span className="text-sm font-black text-white">${(budget?.housePerPerson || 0).toFixed(2)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </GlassCard>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
