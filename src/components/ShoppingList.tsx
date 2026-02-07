@@ -91,7 +91,12 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                                 }`}>
                                                 {isChecked && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                                             </div>
-                                            <span className={`text-[10px] font-bold text-slate-200 truncate ${isChecked ? 'line-through' : ''}`}>{item.nombre}</span>
+                                            <span
+                                                className={`text-[10px] font-bold text-slate-200 truncate ${isChecked ? 'line-through' : ''}`}
+                                                title={item.nombre}
+                                            >
+                                                {item.nombre}
+                                            </span>
                                             {item.cantidad > 0 && (
                                                 <div className="w-1 h-1 rounded-full bg-sky-500 shrink-0 shadow-[0_0_5px_rgba(14,165,233,0.5)]" title="Ajuste manual activo" />
                                             )}
@@ -205,7 +210,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
         return (
             <div key={item.$id} className="group flex justify-between items-center p-2 rounded-lg hover:bg-white/5 transition-colors border-b border-white/[0.03] last:border-0">
                 <div className="flex items-center gap-1 max-w-[70%]">
-                    <span className="text-[10px] text-slate-300 font-medium truncate">{item.nombre}</span>
+                    <span className="text-[10px] text-slate-300 font-medium truncate" title={item.nombre}>{item.nombre}</span>
                     <span className="text-[8px] text-slate-600 font-mono truncate">({qty}{item.unidad})</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-mono font-bold">${(total || 0).toFixed(2)}</span>
