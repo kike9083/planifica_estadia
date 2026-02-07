@@ -10,7 +10,8 @@ import {
     LogOut,
     Settings,
     Menu,
-    X
+    X,
+    HelpCircle
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,9 +24,10 @@ interface SidebarProps {
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
     onLogout: () => void;
+    onOpenTutorial: () => void;
 }
 
-export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, onLogout }: SidebarProps) => {
+export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, onLogout, onOpenTutorial }: SidebarProps) => {
 
     const menuItems = [
         { id: 'dash', label: 'Dashboard', icon: LayoutDashboard },
@@ -102,6 +104,17 @@ export const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, onLogout }
 
             {/* Bottom Actions */}
             <div className="pt-6 border-t border-white/5">
+                <button
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-400 hover:text-sky-400 hover:bg-sky-500/5 transition-all text-sm font-bold group mb-2"
+                    onClick={() => {
+                        onOpenTutorial();
+                        if (window.innerWidth < 768) setIsOpen(false);
+                    }}
+                >
+                    <HelpCircle size={20} className="group-hover:text-sky-400 transition-colors" />
+                    <span>Tutorial de Uso</span>
+                </button>
+
                 <button
                     className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-red-500/5 transition-all text-sm font-bold group"
                     onClick={onLogout}

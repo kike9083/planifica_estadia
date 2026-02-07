@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, TabId } from './Sidebar';
 import { TopBar } from './TopBar';
+import { TutorialModal } from './TutorialModal';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -15,6 +16,15 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children, activeTab, setActiveTab, onLogout, userName, userRole }: DashboardLayoutProps) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+    useEffect(() => {
+        const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
+        if (!hasSeenTutorial) {
+            setIsTutorialOpen(true);
+            localStorage.setItem('hasSeenTutorial', 'true');
+        }
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#0f172a] text-slate-200 selection:bg-sky-500/30 font-sans">
@@ -25,6 +35,7 @@ export const DashboardLayout = ({ children, activeTab, setActiveTab, onLogout, u
                 isOpen={isSidebarOpen}
                 setIsOpen={setIsSidebarOpen}
                 onLogout={onLogout}
+                onOpenTutorial={() => setIsTutorialOpen(true)}
             />
 
             {/* Main Content Area */}
@@ -41,6 +52,11 @@ export const DashboardLayout = ({ children, activeTab, setActiveTab, onLogout, u
                     </main>
                 </div>
             </div>
+
+            <TutorialModal
+                isOpen={isTutorialOpen}
+                onClose={() => setIsTutorialOpen(false)}
+            />
         </div>
     );
 };

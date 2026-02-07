@@ -16,7 +16,15 @@ interface AdminPanelProps {
     updatePrice: (collection: string, id: string, price: number) => Promise<boolean>;
     addPriceItem: (collection: string, item: any) => Promise<boolean>;
     deletePriceItem: (collection: string, id: string) => Promise<boolean>;
-    updatePlanConfig: (config: { duration?: number, nightPrice?: number, startDate?: string }) => Promise<boolean>;
+    updatePlanConfig: (config: {
+        duration?: number,
+        nightPrice?: number,
+        startDate?: string,
+        baseCapacity?: number,
+        maxCapacity?: number,
+        extraPersonFee?: number,
+        calculationMethod?: 'socialized' | 'independent'
+    }) => Promise<boolean>;
     onUpdatePrices: () => void;
     currentPlan: any;
     isOpen?: boolean;
@@ -28,7 +36,11 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
     const [activeTab, setActiveTab] = useState<'config' | 'prices' | 'users'>('config');
     const [tripDuration, setTripDuration] = useState('3');
     const [nightPrice, setNightPrice] = useState('0');
+    const [baseCapacity, setBaseCapacity] = useState('10');
+    const [maxCapacity, setMaxCapacity] = useState('18');
+    const [extraPersonFee, setExtraPersonFee] = useState('20');
     const [startDate, setStartDate] = useState('');
+    const [calculationMethod, setCalculationMethod] = useState<'socialized' | 'independent'>('socialized');
     const [saving, setSaving] = useState(false);
     const [priceCategory, setPriceCategory] = useState<'meat' | 'super' | 'veggies'>('meat');
 
@@ -47,7 +59,11 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
         if (currentPlan && isOpen) {
             setTripDuration(currentPlan.tripDuration?.toString() || '3');
             setNightPrice((currentPlan.nightPrice || 0).toString());
+            setBaseCapacity((currentPlan.baseCapacity || 10).toString());
+            setMaxCapacity((currentPlan.maxCapacity || 18).toString());
+            setExtraPersonFee((currentPlan.extraPersonFee || 20).toString());
             setStartDate(currentPlan.startDate || new Date().toISOString().split('T')[0]);
+            setCalculationMethod(currentPlan.calculationMethod || 'socialized');
         }
     }, [currentPlan, isOpen]);
 
@@ -78,40 +94,50 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
         if (!newUser.email || !newUser.password || !newUser.name) return alert('Completa todos los campos');
         try {
             setLoadingUsers(true);
-            // 1. Create Auth Account (Admin creating user)
-            // Note: account.create creates a new user, but doesn't log them in (if using Client SDK as authenticated user? Wait. 
-            // Client SDK 'create' usually throws if logged in? No, it works for 'SignUp'. 
-            // Correct way for Admin to create user without logging out is Server SDK. 
-            // BUT for Client SDK, typically we can only 'Sign Up' (implicit login often? No, explicit login required).
-            // Let's try it. If it fails, we warn.
+            let authCreated = false;
+            let authMessage = '';
+
+            // 1. Try Create Auth Account
             try {
                 await account.create(ID.unique(), newUser.email, newUser.password, newUser.name);
+                authCreated = true;
             } catch (authErr: any) {
-                console.warn('Auth creation failed (maybe user exists or permissions):', authErr);
-                if (authErr.code !== 409) { // 409 = conflict/exists
-                    alert('Error creando cuenta de Auth: ' + authErr.message);
-                    return; // Stop if crucial failure
+                console.warn('Auth creation skipped/failed:', authErr);
+                if (authErr.code === 401 || authErr.message?.includes('scope')) {
+                    authMessage = ' (Nota: Deben registrarse ellos mismos pues ya tienes sesión activa)';
+                } else if (authErr.code === 409) {
+                    authMessage = ' (El usuario ya tenía cuenta Auth)';
+                } else {
+                    authMessage = ` (Error Auth: ${authErr.message})`;
                 }
             }
 
-            // 2. Create Database Entry
-            await databases.createDocument(
-                APPWRITE_CONFIG.DATABASE,
-                'users',
-                ID.unique(),
-                {
-                    email: newUser.email,
-                    name: newUser.name,
-                    role: newUser.role
-                }
-            );
+            // 2. Create/Update Database Entry for Role
+            try {
+                await databases.createDocument(
+                    APPWRITE_CONFIG.DATABASE,
+                    'users',
+                    ID.unique(),
+                    {
+                        email: newUser.email,
+                        name: newUser.name,
+                        role: newUser.role
+                    }
+                );
 
-            alert('Usuario creado correctamente');
-            setNewUser({ name: '', email: '', password: '', role: 'user' });
-            loadUsers();
+                alert(`Usuario ${newUser.name} autorizado correctamente.${!authCreated ? authMessage : ''}`);
+                setNewUser({ name: '', email: '', password: '', role: 'user' });
+                loadUsers();
+            } catch (dbErr: any) {
+                // If create fails, maybe check if we should update an existing record (by email query)?
+                // For now, simple alert.
+                console.error(dbErr);
+                alert('La autorización en BD falló: ' + dbErr.message);
+            }
+
         } catch (e: any) {
             console.error(e);
-            alert('Error creating user: ' + e.message);
+            alert('Error general: ' + e.message);
         } finally {
             setLoadingUsers(false);
         }
@@ -127,13 +153,32 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
         }
     };
 
+    const handleToggleRole = async (id: string, currentRole: string) => {
+        const newRole = currentRole === 'admin' ? 'user' : 'admin';
+        try {
+            await databases.updateDocument(
+                APPWRITE_CONFIG.DATABASE,
+                'users',
+                id,
+                { role: newRole }
+            );
+            loadUsers();
+        } catch (e) {
+            alert('Error al actualizar el rol');
+        }
+    };
+
     const handleSaveConfig = async () => {
         setSaving(true);
         try {
             const success = await updatePlanConfig({
                 duration: parseInt(tripDuration),
                 nightPrice: parseFloat(nightPrice),
-                startDate: startDate
+                startDate: startDate,
+                baseCapacity: parseInt(baseCapacity),
+                maxCapacity: parseInt(maxCapacity),
+                extraPersonFee: parseFloat(extraPersonFee),
+                calculationMethod: calculationMethod
             });
             if (success) {
                 alert('Configuración del plan actualizada correctamente');
@@ -284,6 +329,8 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                                             value={newUser.role}
                                             onChange={e => setNewUser({ ...newUser, role: e.target.value })}
                                             className="bg-slate-950 border border-white/10 rounded-lg p-3 text-white flex-1 focus:border-sky-500 focus:outline-none"
+                                            title="Seleccionar Rol de Usuario"
+                                            aria-label="Seleccionar Rol de Usuario"
                                         >
                                             <option value="user">Usuario</option>
                                             <option value="admin">Administrador</option>
@@ -303,10 +350,19 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                                                 <p className="text-sm text-slate-500">{u.email}</p>
                                             </div>
                                             <div className="flex items-center gap-4">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                <button
+                                                    onClick={() => handleToggleRole(u.$id, u.role)}
+                                                    className={`px-2 py-1 rounded text-[10px] font-black uppercase transition-all border ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'} hover:scale-105 active:scale-95`}
+                                                    title="Click para cambiar rol"
+                                                >
                                                     {u.role}
-                                                </span>
-                                                <button onClick={() => handleDeleteUser(u.$id, u.name)} className="text-slate-500 hover:text-red-400 transition-colors">
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteUser(u.$id, u.name)}
+                                                    className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                                                    title="Eliminar Usuario"
+                                                    aria-label="Eliminar Usuario"
+                                                >
                                                     <Trash2 size={18} />
                                                 </button>
                                             </div>
@@ -326,6 +382,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
 
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* DURACION - Editable por todos para planificación personal */}
                                         <div className="space-y-4">
                                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Duración del Viaje (Días)</label>
                                             <div className="relative group">
@@ -342,6 +399,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                                             <p className="text-[10px] text-slate-500 font-medium pl-1">Cantidad de noches: {Math.max(0, parseInt(tripDuration || '0') - 1)}</p>
                                         </div>
 
+                                        {/* PRECIO NOCHE - Editable por todos los autorizados */}
                                         <div className="space-y-4">
                                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Valor por Noche ($)</label>
                                             <div className="relative group">
@@ -355,9 +413,93 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                                                     title="Costo por cada noche de estancia"
                                                 />
                                             </div>
-                                            <p className="text-[10px] text-slate-500 font-medium pl-1">Total Hospedaje: ${(Math.max(0, parseInt(tripDuration || '0') - 1) * parseFloat(nightPrice || '0')).toFixed(2)}</p>
+                                            <p className="text-[10px] text-slate-500 font-medium pl-1">Total Hospedaje Base: ${(Math.max(0, parseInt(tripDuration || '0') - 1) * parseFloat(nightPrice || '0')).toFixed(2)}</p>
                                         </div>
 
+                                        {/* CAPACIDAD Y EXCEDENTES - SOLO ADMIN */}
+                                        {role === 'admin' && (
+                                            <div className="bg-white/5 p-6 rounded-2xl border border-white/5 md:col-span-2 space-y-6">
+                                                <h4 className="text-xs font-black text-sky-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <Users size={14} /> Capacidad y Excedentes
+                                                </h4>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div className="space-y-3">
+                                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Capacidad Base</label>
+                                                        <input
+                                                            type="number"
+                                                            value={baseCapacity}
+                                                            onChange={(e) => setBaseCapacity(e.target.value)}
+                                                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white font-mono font-bold focus:outline-none focus:border-sky-500 transition-all"
+                                                            placeholder="10"
+                                                        />
+                                                        <p className="text-[9px] text-slate-600 leading-tight">Cantidad personas incluidas en precio base.</p>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Capacidad Máxima</label>
+                                                        <input
+                                                            type="number"
+                                                            value={maxCapacity}
+                                                            onChange={(e) => setMaxCapacity(e.target.value)}
+                                                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white font-mono font-bold focus:outline-none focus:border-sky-500 transition-all"
+                                                            placeholder="18"
+                                                        />
+                                                        <p className="text-[9px] text-slate-600 leading-tight">Límite absoluto de huéspedes permitidos.</p>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Recargo p/p Extra</label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                                                            <input
+                                                                type="number"
+                                                                value={extraPersonFee}
+                                                                onChange={(e) => setExtraPersonFee(e.target.value)}
+                                                                className="w-full bg-slate-950 border border-white/10 rounded-xl py-3 pl-7 pr-3 text-white font-mono font-bold focus:outline-none focus:border-sky-500 transition-all"
+                                                                placeholder="20"
+                                                            />
+                                                        </div>
+                                                        <p className="text-[9px] text-slate-600 leading-tight">Costo extra por persona excedente (por noche).</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* MÉTODO DE CÁLCULO */}
+                                        <div className="bg-white/5 p-6 rounded-2xl border border-white/5 md:col-span-2 space-y-6">
+                                            <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                                                <Settings size={14} /> Lógica de Costos (Hospedaje)
+                                            </h4>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button
+                                                    onClick={() => setCalculationMethod('socialized')}
+                                                    className={`p-4 rounded-xl border transition-all text-left space-y-2 ${calculationMethod === 'socialized' ? 'bg-sky-500/20 border-sky-500/50 ring-1 ring-sky-500/20' : 'bg-slate-950/50 border-white/10 hover:border-white/20'}`}
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${calculationMethod === 'socialized' ? 'text-sky-400' : 'text-slate-500'}`}>Socializado</span>
+                                                        {calculationMethod === 'socialized' && <div className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />}
+                                                    </div>
+                                                    <p className="text-[11px] font-bold text-white">Todos pagan igual</p>
+                                                    <p className="text-[9px] text-slate-500 leading-tight">Divide el costo total de la casa entre todos los asistentes por igual.</p>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => setCalculationMethod('independent')}
+                                                    className={`p-4 rounded-xl border transition-all text-left space-y-2 ${calculationMethod === 'independent' ? 'bg-amber-500/20 border-amber-500/50 ring-1 ring-amber-500/20' : 'bg-slate-950/50 border-white/10 hover:border-white/20'}`}
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${calculationMethod === 'independent' ? 'text-amber-400' : 'text-slate-500'}`}>Por Paquete</span>
+                                                        {calculationMethod === 'independent' && <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
+                                                    </div>
+                                                    <p className="text-[11px] font-bold text-white">Base + Extra</p>
+                                                    <p className="text-[9px] text-slate-500 leading-tight">Cuota fija para la base. Los extras pagan su recargo por separado.</p>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* FECHA LLEGADA - Editable por todos */}
                                         <div className="space-y-4 md:col-span-2">
                                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Fecha de Llegada</label>
                                             <div className="relative group">
@@ -381,6 +523,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                         </div>
                     )}
 
+                    {/* BASE DE PRECIOS - ACCESIBLE PARA TODOS */}
                     {activeTab === 'prices' && (
                         <div className="space-y-6 h-full flex flex-col">
                             {/* Subtabs for categories */}
@@ -500,7 +643,7 @@ export const AdminPanel = ({ prices, proteins, veggies, inventory, updatePrice, 
                         </div>
                     )}
                 </div>
-            </GlassCard>
-        </div>
+            </GlassCard >
+        </div >
     );
 };

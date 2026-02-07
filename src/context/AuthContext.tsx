@@ -37,13 +37,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             let assignedRole: 'admin' | 'user' | 'guest' = 'user';
 
+            // 1. Initial fallback based on specific emails
+            const fallbackAdmins = ['admin@skyblue.pro', 'usuario@skyblue.pro', 'admin'];
+            if (fallbackAdmins.includes(current.email)) {
+                assignedRole = 'admin';
+            }
+
             try {
-                // Check role in database
+                // 2. Database check (Overrides fallback)
                 const userDocs = await databases.listDocuments(
                     APPWRITE_CONFIG.DATABASE,
                     'users',
                     [Query.equal('email', current.email)]
                 );
+
                 if (userDocs.documents.length > 0) {
                     const doc = userDocs.documents[0];
                     if (doc.role === 'admin' || doc.role === 'user') {
@@ -52,12 +59,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             } catch (err) {
                 console.warn('Could not fetch roles from DB, using fallback', err);
-            }
-
-            // Hardcoded fallback for bootstrap
-            const fallbackAdmins = ['admin@skyblue.pro', 'usuario@skyblue.pro', 'admin'];
-            if (fallbackAdmins.includes(current.email) || current.email.startsWith('admin')) {
-                assignedRole = 'admin';
             }
 
             setRole(assignedRole);

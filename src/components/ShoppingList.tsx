@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { GlassCard } from './ui/GlassCard';
-import { ShoppingCart, Leaf, Beef, Store, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Leaf, Beef, Store, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { motion } from 'framer-motion';
 
 interface ShoppingListProps {
     pax: number;
@@ -13,10 +14,11 @@ interface ShoppingListProps {
     proteins?: any[];
     veggies?: any[];
     onUpdateQty?: (collId: string, id: string, qty: number) => Promise<boolean>;
+    onDeleteItem?: (collId: string, id: string) => Promise<boolean>;
     budget?: any;
 }
 
-export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], veggies = [], onUpdateQty, budget }: ShoppingListProps) => {
+export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], veggies = [], onUpdateQty, onDeleteItem, budget }: ShoppingListProps) => {
     const { user } = useAuth();
     const paxCount = pax || 1;
     const [editingItem, setEditingItem] = React.useState<{ collId: string, id: string, val: string } | null>(null);
@@ -36,6 +38,12 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                 await onUpdateQty(editingItem.collId, editingItem.id, val);
             }
             setEditingItem(null);
+        }
+    };
+
+    const handleDelete = async (collId: string, id: string) => {
+        if (confirm('¿Eliminar producto de la lista?') && onDeleteItem) {
+            await onDeleteItem(collId, id);
         }
     };
 
@@ -90,10 +98,10 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                         </div>
                                         <div className="flex items-center gap-1.5 pl-5">
                                             <span className="text-[8px] text-slate-500 font-mono">
-                                                ${(item.precio || 0).toFixed(2)}
+                                                ${(item?.precio || 0).toFixed(2)}
                                             </span>
                                             <span className="text-[8px] text-sky-400/60 font-black tabular-nums">
-                                                / ${(parseFloat(currentQty.toString()) * (item.precio || 0)).toFixed(2)}
+                                                / ${(parseFloat(currentQty.toString()) * (item?.precio || 0)).toFixed(2)}
                                             </span>
                                         </div>
                                     </div>
@@ -107,6 +115,9 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                                 onBlur={handleUpdateQty}
                                                 onKeyDown={e => e.key === 'Enter' && handleUpdateQty()}
                                                 autoFocus
+                                                title="Editar cantidad"
+                                                aria-label="Editar cantidad del producto"
+                                                placeholder="0.0"
                                                 className="w-12 bg-slate-900 border border-sky-500/50 rounded-lg px-1.5 py-0.5 text-[10px] text-white focus:outline-none focus:ring-1 ring-sky-500/10 text-center"
                                             />
                                         ) : (
@@ -119,6 +130,16 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                             </div>
                                         )}
                                     </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(collId, item.$id);
+                                        }}
+                                        className="ml-2 p-1.5 text-slate-600 hover:text-red-400 opacity-0 group-hover/item:opacity-100 transition-all"
+                                        title="Eliminar ítem"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
                                 </div>
                             );
                         })}
@@ -187,7 +208,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                     <span className="text-[10px] text-slate-300 font-medium truncate">{item.nombre}</span>
                     <span className="text-[8px] text-slate-600 font-mono truncate">({qty}{item.unidad})</span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono font-bold">${total.toFixed(2)}</span>
+                <span className="text-[10px] text-slate-400 font-mono font-bold">${(total || 0).toFixed(2)}</span>
             </div>
         );
     };
@@ -251,34 +272,58 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
 
                         <div className="flex-1 max-w-xl space-y-4">
                             <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden flex shadow-inner border border-white/5 group">
-                                <div style={{ width: `${protPerc}%` }} className="h-full bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all duration-700" title={`Proteínas: ${protPerc.toFixed(1)}%`} />
-                                <div style={{ width: `${vegPerc}%` }} className="h-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-700" title={`Vegetales: ${vegPerc.toFixed(1)}%`} />
-                                <div style={{ width: `${invPerc}%` }} className="h-full bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all duration-700" title={`Víveres: ${invPerc.toFixed(1)}%`} />
-                                <div style={{ width: `${miscPerc}%` }} className="h-full bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-700" title={`Misc: ${miscPerc.toFixed(1)}%`} />
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${protPerc}%` }}
+                                    transition={{ duration: 1, ease: "easeOut" }}
+                                    className="h-full bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)]"
+                                    title={`Proteínas: ${(protPerc || 0).toFixed(1)}%`}
+                                />
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${vegPerc}%` }}
+                                    transition={{ duration: 1, ease: "easeOut", delay: 0.1 }}
+                                    className="h-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                                    title={`Vegetales: ${(vegPerc || 0).toFixed(1)}%`}
+                                />
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${invPerc}%` }}
+                                    transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                                    className="h-full bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.4)]"
+                                    title={`Víveres: ${(invPerc || 0).toFixed(1)}%`}
+                                />
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${miscPerc}%` }}
+                                    transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+                                    className="h-full bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                    title={`Misc: ${(miscPerc || 0).toFixed(1)}%`}
+                                />
                             </div>
                             <div className="flex flex-wrap gap-x-8 gap-y-2">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Proteínas {protPerc.toFixed(0)}%</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Proteínas {(protPerc || 0).toFixed(0)}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Vegetales {vegPerc.toFixed(0)}%</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Vegetales {(vegPerc || 0).toFixed(0)}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Víveres {invPerc.toFixed(0)}%</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Víveres {(invPerc || 0).toFixed(0)}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Esenciales {miscPerc.toFixed(0)}%</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Esenciales {(miscPerc || 0).toFixed(0)}%</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="bg-amber-500/10 p-6 rounded-3xl border border-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.1)] relative overflow-hidden flex flex-col items-center xl:items-end shrink-0 min-w-[220px]">
                             <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] mb-2 leading-none">Inversión Final</p>
-                            <h2 className="text-4xl font-black text-white tracking-tighter leading-none">${grandTotal.toFixed(2)}</h2>
+                            <h2 className="text-4xl font-black text-white tracking-tighter leading-none">${(grandTotal || 0).toFixed(2)}</h2>
                         </div>
                     </div>
 
@@ -288,7 +333,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                         <div className="space-y-6">
                             <header className="flex justify-between items-center border-b border-white/5 pb-3">
                                 <span className="text-xs font-black text-sky-400 uppercase tracking-[0.2em]">Proteínas</span>
-                                <span className="text-xs font-mono font-black text-white">${proteinsTotal.toFixed(2)}</span>
+                                <span className="text-xs font-mono font-black text-white">${(proteinsTotal || 0).toFixed(2)}</span>
                             </header>
                             <div className="space-y-1">
                                 {proteins.map(renderItemTotal)}
@@ -299,7 +344,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                         <div className="space-y-6">
                             <header className="flex justify-between items-center border-b border-white/5 pb-3">
                                 <span className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">Vegetales</span>
-                                <span className="text-xs font-mono font-black text-white">${veggiesTotal.toFixed(2)}</span>
+                                <span className="text-xs font-mono font-black text-white">${(veggiesTotal || 0).toFixed(2)}</span>
                             </header>
                             <div className="space-y-1">
                                 {veggies.map(renderItemTotal)}
@@ -313,7 +358,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                     <span className="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Víveres & Abarrotes</span>
                                     <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-full font-bold uppercase">Multicolumna</span>
                                 </div>
-                                <span className="text-xs font-mono font-black text-white">${inventoryTotal.toFixed(2)}</span>
+                                <span className="text-xs font-mono font-black text-white">${(inventoryTotal || 0).toFixed(2)}</span>
                             </header>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
                                 {inventory.map(renderItemTotal)}
@@ -327,7 +372,7 @@ export const ShoppingList = ({ pax, menu = [], inventory = [], proteins = [], ve
                                     </p>
                                 </div>
                                 <div className="text-right shrink-0">
-                                    <span className="text-xl font-mono font-black text-white/90">${miscBuffer.toFixed(2)}</span>
+                                    <span className="text-xl font-mono font-black text-white/90">${(miscBuffer || 0).toFixed(2)}</span>
                                 </div>
                             </div>
                         </div>

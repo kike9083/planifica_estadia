@@ -22,42 +22,45 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
 
                 <div className="mb-6 flex gap-2 flex-wrap">
                     <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-slate-400 border border-white/5">
-                        {budget.adultsUsed} ADULTOS
-                    </span>
-                    <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-amber-500/70 border border-amber-500/10">
-                        {budget.juniorsUsed} JUNIORS
+                        {budget?.peopleUsed || 0} PERSONAS (PAGAN)
                     </span>
                     <span className="text-[9px] font-black px-2 py-1 bg-white/5 rounded-md text-emerald-500/70 border border-emerald-500/10">
-                        {stats.free} GRATUÍTOS
+                        {stats?.free || 0} {"GRATUITOS (≤5)"}
                     </span>
                 </div>
 
                 <div className="space-y-4 border-b border-white/5 pb-8 mb-6">
                     <div className="flex justify-between text-xs font-medium text-slate-400">
-                        <span>Total Reserva (+Extras):</span>
-                        <span className="text-white">${budget.totalLodgingToCover.toFixed(2)}</span>
+                        <span>Reserva Base ({budget?.nights || 0} noches):</span>
+                        <span className="text-white">${(budget?.lodgingBaseTotal || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs font-medium text-amber-500/80">
-                        <span>Aporte Juniors (Pagado):</span>
-                        <span>-${budget.juniorContribution.toFixed(2)}</span>
+                        <span>Recargo p/p Extra:</span>
+                        <span>+${(budget?.extraPeopleTotalCost || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-base font-black text-white pt-4 border-t border-white/5">
-                        <span>A cubrir por Adultos:</span>
-                        <span className="text-emerald-400">${budget.lodgingTotal.toFixed(2)}</span>
+                        <span>Total Hospedaje:</span>
+                        <span className="text-emerald-400">${(budget?.totalLodgingToCover || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
                 <div className="text-center py-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 mb-4">
                     <p className="text-[9px] font-black uppercase text-emerald-500 tracking-[0.2em] mb-2">Cuota Casa p/p</p>
-                    <h2 className="text-4xl font-black text-white tracking-tight">${budget.housePerAdult.toFixed(2)}</h2>
+                    <h2 className="text-4xl font-black text-white tracking-tight">${(budget?.housePerPerson || 0).toFixed(2)}</h2>
                     <p className="text-[9px] text-slate-500 mt-1 font-bold italic">
-                        (${budget.lodgingTotal.toFixed(2)} ÷ {budget.adultsUsed} adultos)
+                        {budget?.isIndependent
+                            ? `(${(budget?.lodgingBaseTotal || 0).toFixed(2)} ÷ ${budget?.baseCapacity || 1} base)`
+                            : `(${(budget?.totalLodgingToCover || 0).toFixed(2)} ÷ ${budget?.peopleUsed || 1} personas)`
+                        }
                     </p>
                 </div>
 
                 <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5">
                     <p className="text-[9px] text-slate-500 font-medium italic leading-relaxed">
-                        * Nota: El costo base (${budget.lodgingTotal.toFixed(2)}) es repartido entre los mayores de 12 años. Los Juniors cubren su propio excedente de $20 cada uno.
+                        {budget?.isIndependent
+                            ? `* Nota: Cuota fija para los primeros ${budget?.baseCapacity} asistentes; las personas extras pagan recargo individual.`
+                            : "* Nota: El costo total se divide por igual entre todos."
+                        }
                     </p>
                 </div>
             </GlassCard>
@@ -74,15 +77,15 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                 <div className="space-y-4 border-b border-white/5 pb-8 mb-8">
                     <div className="flex justify-between text-xs font-medium">
                         <span className="text-slate-400">Total Súper:</span>
-                        <span className="text-white">${budget.foodTotal.toFixed(2)}</span>
+                        <span className="text-white">${(budget?.foodTotal || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs font-bold italic text-sky-400/70">
                         <span>Base de división:</span>
-                        <span>{budget.adultsUsed} Adultos</span>
+                        <span>{budget?.peopleUsed || 0} Personas</span>
                     </div>
                     <div className="flex justify-between text-base font-black text-white pt-4 border-t border-white/5">
                         <span>Cuota Super:</span>
-                        <span className="text-sky-400">${budget.foodPerAdult.toFixed(2)}</span>
+                        <span className="text-sky-400">${(budget?.foodPerPerson || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -90,7 +93,7 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                     <p className="text-[9px] font-black uppercase text-sky-400 tracking-[0.2em] mb-2 text-center">
                         Inversión en comida p/p
                     </p>
-                    <h2 className="text-4xl font-black text-white text-center tracking-tight">${budget.foodPerAdult.toFixed(2)}</h2>
+                    <h2 className="text-4xl font-black text-white text-center tracking-tight">${budget.foodPerPerson.toFixed(2)}</h2>
                 </div>
             </GlassCard>
 
@@ -98,20 +101,29 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
             <GlassCard className="lg:col-span-4 p-10 bg-gradient-to-br from-sky-600 to-sky-900 border-none flex flex-col justify-between overflow-hidden relative">
                 <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                 <div>
-                    <p className="text-[10px] font-black text-sky-200 uppercase tracking-[0.3em] mb-2">Cuotas Estimadas</p>
+                    <p className="text-[10px] font-black text-sky-200 uppercase tracking-[0.3em] mb-2">Cuota Estimada</p>
                     <div className="space-y-4 mt-6">
                         <div className="relative z-10">
-                            <h2 className="text-5xl font-black text-white leading-none tracking-tighter">${budget.totalPerAdult.toFixed(2)}</h2>
-                            <p className="text-[10px] font-bold text-sky-300 mt-2 uppercase tracking-[0.2em]">Costo por Adulto</p>
+                            <h2 className="text-5xl font-black text-white leading-none tracking-tighter">${(budget?.totalPerPerson || 0).toFixed(2)}</h2>
+                            <p className="text-[10px] font-bold text-sky-300 mt-2 uppercase tracking-[0.2em]">Costo Final por Persona</p>
                         </div>
                         <div className="relative z-10 pt-4 border-t border-white/10">
-                            <h2 className="text-3xl font-black text-sky-200 leading-none tracking-tighter">${budget.juniorQuota.toFixed(2)}</h2>
-                            <p className="text-[9px] font-bold text-sky-400 mt-2 uppercase tracking-[0.2em]">Costo por Junior</p>
+                            <h2 className="text-3xl font-black text-sky-200 leading-none tracking-tighter">
+                                {budget?.isIndependent ? `$${(budget?.extraFeePerPerson || 0).toFixed(2)}` : (budget?.overLimitCount || 0)}
+                            </h2>
+                            <p className="text-[9px] font-bold text-sky-400 mt-2 uppercase tracking-[0.2em]">
+                                {budget?.isIndependent ? 'Recargo Persona Extra' : 'Personas Extra detectadas'}
+                            </p>
                         </div>
                     </div>
                 </div>
                 <div className="mt-6 relative z-10 opacity-60">
-                    <p className="text-[9px] text-sky-100 font-medium italic">Calculado para {budget.adultsUsed} adultos y {budget.juniorsUsed} juniors.</p>
+                    <p className="text-[9px] text-sky-100 font-medium italic">
+                        {budget?.isIndependent
+                            ? `Modo Paquete: ${budget?.baseCapacity} cupos base + extras.`
+                            : "Modo Socializado: Todos pagan por igual."
+                        }
+                    </p>
                 </div>
             </GlassCard>
 

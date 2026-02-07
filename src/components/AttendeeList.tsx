@@ -117,7 +117,7 @@ export const AttendeeList = ({ attendees, onRemove, onUpdate }: AttendeeListProp
                                     ) : (
                                         <>
                                             <div className="flex items-center gap-6">
-                                                <div className={`w-14 h-14 rounded-[1.3rem] flex items-center justify-center font-black text-xl shadow-inner border border-white/5 ${person.age > 12 ? 'bg-sky-500/10 text-sky-400' : person.age > 5 ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-400'
+                                                <div className={`w-14 h-14 rounded-[1.3rem] flex items-center justify-center font-black text-xl shadow-inner border border-white/5 ${person.age >= 5 ? 'bg-sky-500/10 text-sky-400' : 'bg-emerald-500/10 text-emerald-400'
                                                     }`}>
                                                     {person.name.charAt(0).toUpperCase()}
                                                 </div>
@@ -126,15 +126,10 @@ export const AttendeeList = ({ attendees, onRemove, onUpdate }: AttendeeListProp
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{person.age} años</span>
                                                         <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                                        {person.age > 12 ? (
+                                                        {person.age >= 5 ? (
                                                             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-sky-500/5 rounded-full border border-sky-500/10">
                                                                 <div className="w-1 h-1 rounded-full bg-sky-500 animate-pulse" />
-                                                                <span className="text-[8px] font-black text-sky-400 uppercase tracking-tighter">Adulto</span>
-                                                            </div>
-                                                        ) : person.age > 5 ? (
-                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/5 rounded-full border border-amber-500/10">
-                                                                <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
-                                                                <span className="text-[8px] font-black text-amber-500 uppercase tracking-tighter">Junior</span>
+                                                                <span className="text-[8px] font-black text-sky-400 uppercase tracking-tighter">Persona</span>
                                                             </div>
                                                         ) : (
                                                             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/5 rounded-full border border-emerald-500/10">

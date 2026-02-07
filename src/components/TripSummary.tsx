@@ -8,8 +8,7 @@ import { Attendee, Plan } from '@/hooks/useAppLogic';
 interface TripSummaryProps {
     currentPlan: Plan | null;
     stats: {
-        adults: number;
-        juniors: number;
+        people: number;
         free: number;
         total: number;
     };
@@ -57,25 +56,26 @@ export const TripSummary = ({ currentPlan, stats, budget, attendees, menu }: Tri
 
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.text('Cuota por Adulto:', 20, y);
+            doc.text('Cuota por Persona:', 20, y);
             doc.setFont('helvetica', 'bold');
-            doc.text(`$${budget.totalPerAdult.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+            doc.text(`$${(budget?.totalPerPerson || 0).toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
 
             y += 8;
             doc.setFont('helvetica', 'normal');
-            doc.text('  - Hospedaje:', 20, y);
-            doc.text(`$${budget.housePerAdult.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+            doc.text('  - Hospedaje (inc. excedentes):', 20, y);
+            doc.text(`$${(budget?.housePerPerson || 0).toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
 
             y += 8;
             doc.text('  - Alimentación:', 20, y);
-            doc.text(`$${budget.foodPerAdult.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+            doc.text(`$${(budget?.foodPerPerson || 0).toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
 
-            if (stats.juniors > 0) {
+            if (budget?.extraPeopleTotalCost > 0) {
                 y += 8;
                 doc.setTextColor(180, 83, 9); // Amber
-                doc.text('Cuota Junior (pago único):', 20, y);
-                doc.text(`$${budget.juniorQuota.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+                doc.setFont('helvetica', 'italic');
+                doc.text(`* Incluye recargo por ${budget.overLimitCount} personas extra`, 20, y);
                 doc.setTextColor(30, 41, 59);
+                doc.setFont('helvetica', 'normal');
             }
 
             y += 15;
@@ -92,7 +92,7 @@ export const TripSummary = ({ currentPlan, stats, budget, attendees, menu }: Tri
             doc.setFont('helvetica', 'normal');
             doc.text(`Total de personas confirmadas: ${stats.total}`, 20, y);
             y += 8;
-            doc.text(`Adultos: ${stats.adults}  |  Juniors: ${stats.juniors}  |  Niños Gratis: ${stats.free}`, 20, y);
+            doc.text(`Personas (Pagan): ${stats.people}  |  Niños Gratis (<5): ${stats.free}`, 20, y);
 
             y += 15;
 
@@ -111,7 +111,7 @@ export const TripSummary = ({ currentPlan, stats, budget, attendees, menu }: Tri
             let col = 0;
             attendees.forEach((p, index) => {
                 const posX = col === 0 ? 25 : pageWidth / 2 + 5;
-                const text = `• ${p.name} (${p.age > 12 ? 'Adulto' : p.age > 5 ? 'Junior' : 'Gratis'})`;
+                const text = `• ${p.name} (${p.age >= 5 ? 'Persona' : 'Gratis'})`;
                 doc.text(text, posX, y);
 
                 if (col === 1) {

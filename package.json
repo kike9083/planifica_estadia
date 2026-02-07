@@ -21,6 +21,7 @@
     "jspdf": "^4.1.0",
     "lucide-react": "^0.395.0",
     "next": "latest",
+    "node-appwrite": "^22.0.0",
     "react": "latest",
     "react-dom": "latest",
     "tailwind-merge": "^2.3.0"

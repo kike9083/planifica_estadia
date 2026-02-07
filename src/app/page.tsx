@@ -32,6 +32,8 @@ export default function App() {
         tripDuration,
         simAdults,
         setSimAdults,
+        simulationPrice,
+        setSimulationPrice,
         inventory,
         proteins,
         veggies,
@@ -45,15 +47,15 @@ export default function App() {
         updatePlanConfig,
         deletePlan,
         renamePlan,
-        updateProductQty
+        updateProductQty,
+        deleteInventoryItem
     } = useAppLogic();
 
     const { user, loading: authLoading, userName, role, logout } = useAuth();
 
     // Use simAdults but prioritize real confirmed count if it's higher or if we want precision
-    const adultsToUse = Math.max(stats.adults, simAdults);
-    const juniorsToUse = stats.juniors; // Juniors are always real confirmed
-    const currentBudget = calculateBudget(adultsToUse, juniorsToUse, adultsToUse + juniorsToUse);
+    const peopleToUse = Math.max(stats.people, simAdults);
+    const currentBudget = calculateBudget(peopleToUse, peopleToUse);
 
     return (
         <DashboardLayout
@@ -111,6 +113,8 @@ export default function App() {
                             budget={currentBudget}
                             simAdults={simAdults}
                             setSimAdults={setSimAdults}
+                            simulationPrice={simulationPrice}
+                            setSimulationPrice={setSimulationPrice}
                         />
 
                         <div className="mt-12">
@@ -149,13 +153,14 @@ export default function App() {
                             <p className="text-slate-500 text-sm font-medium">Cantidades estimadas según la población confirmada.</p>
                         </div>
                         <ShoppingList
-                            pax={adultsToUse + juniorsToUse}
+                            pax={peopleToUse}
                             menu={menu}
                             prices={prices}
                             inventory={inventory}
                             proteins={proteins}
                             veggies={veggies}
                             onUpdateQty={updateProductQty}
+                            onDeleteItem={deleteInventoryItem}
                             budget={currentBudget}
                         />
                     </motion.div>

@@ -19,6 +19,10 @@ export interface Plan {
     descripcion?: string;
     tripDuration: number;
     nightPrice: number;
+    baseCapacity?: number;     // Nueva capacidad base
+    maxCapacity?: number;      // Capacidad máxima permitida
+    extraPersonFee?: number;   // Recargo por persona extra
+    calculationMethod?: 'socialized' | 'independent'; // Método de cálculo
     startDate?: string;
     userId: string;
 }
@@ -29,6 +33,7 @@ export const useAppLogic = () => {
     const [loading, setLoading] = useState(true);
     const [simAdults, setSimAdults] = useState(0);
     const [tripDuration, setTripDuration] = useState(3);
+    const [simulationPrice, setSimulationPrice] = useState<number | null>(null); // Para simulaciones temporales
     const [dbPrices, setDbPrices] = useState<any>(null);
     const [dbMenu, setDbMenu] = useState<any[]>([]);
     const [inventory, setInventory] = useState<any[]>([]);
@@ -152,13 +157,16 @@ export const useAppLogic = () => {
     }, [loadData]);
 
     useEffect(() => {
-        if (!loading && attendees.length > 0) {
-            const confirmedAdults = attendees.filter(a => a.age > 12).length;
-            if (confirmedAdults > 0 && simAdults === 0) {
-                setSimAdults(confirmedAdults);
+        if (!loading && currentPlan) {
+            const confirmedPeople = attendees.filter(a => a.age > 5).length;
+            const baseCap = currentPlan.baseCapacity || 10;
+
+            // Inicializar simAdults para que el TOTAL coincida con la base (Personas que pagan)
+            if (simAdults === 0) {
+                setSimAdults(Math.max(confirmedPeople, baseCap));
             }
         }
-    }, [loading, attendees, simAdults]);
+    }, [loading, attendees.length, currentPlan?.$id, simAdults]);
 
     useEffect(() => {
         localStorage.setItem('attendees_backup', JSON.stringify(attendees));
@@ -213,8 +221,7 @@ export const useAppLogic = () => {
     };
 
     const stats = {
-        adults: attendees.filter(a => a.age > 12).length,
-        juniors: attendees.filter(a => a.age > 5 && a.age <= 12).length,
+        people: attendees.filter(a => a.age > 5).length,
         free: attendees.filter(a => a.age <= 5).length,
         total: attendees.length
     };
@@ -236,11 +243,27 @@ export const useAppLogic = () => {
         return 1.0;
     };
 
-    const calculateBudget = (adultCount: number, juniorCount: number, totalPax: number) => {
+    const calculateBudget = (peopleCount: number, totalPax: number) => {
         const p = dbPrices || { meat: {}, super: {}, veggies: {} };
         const nights = Math.max(0, (currentPlan?.tripDuration || 3) - 1);
-        const nightValue = currentPlan?.nightPrice || 0;
-        const lodgingTotal = nights * nightValue;
+
+        // Priorizar el precio de simulación si existe
+        const nightValue = simulationPrice !== null ? simulationPrice : (currentPlan?.nightPrice || 0);
+
+        // Logica de capacidad y excedentes
+        const baseCapacity = currentPlan?.baseCapacity || 10;
+        const maxCapacity = currentPlan?.maxCapacity || 18;
+        const extraFee = currentPlan?.extraPersonFee || 20;
+
+        const totalToCharge = peopleCount; // Personas que cuentan para el límite (pagan)
+        const overLimitCount = Math.max(0, totalToCharge - baseCapacity);
+        const extraPeopleTotalCost = overLimitCount * extraFee * nights;
+
+        const isOverMax = totalToCharge > maxCapacity;
+
+        const lodgingBaseTotal = nights * nightValue;
+        const totalLodgingToCover = lodgingBaseTotal + extraPeopleTotalCost;
+
         const pax = totalPax || 1;
         const menu = dbMenu || [];
 
@@ -276,15 +299,20 @@ export const useAppLogic = () => {
         const miscTotal = menu.length > 0 ? 15.00 : 40.00;
         const foodTotal = proteinsTotal + veggiesTotal + inventoryTotal + miscTotal;
 
-        const juniorPrice = p.extraPax || 20.00;
-        const juniorExtraCost = juniorCount * juniorPrice;
-        const totalLodgingToCover = lodgingTotal + juniorExtraCost;
+        const isIndependent = currentPlan?.calculationMethod === 'independent';
 
-        const housePerAdult = adultCount > 0 ? ((totalLodgingToCover - juniorExtraCost) / adultCount) : 0;
-        const foodPerAdult = adultCount > 0 ? (foodTotal / adultCount) : 0;
+        // La división depende del método de cálculo
+        const housePerPerson = isIndependent
+            ? (baseCapacity > 0 ? (lodgingBaseTotal / baseCapacity) : 0)
+            : (peopleCount > 0 ? (totalLodgingToCover / peopleCount) : 0);
+
+        const foodPerPerson = peopleCount > 0 ? (foodTotal / peopleCount) : 0;
+        const extraFeePerPerson = extraFee * nights;
 
         return {
-            lodgingTotal,
+            lodgingTotal: totalLodgingToCover,
+            lodgingBaseTotal,
+            extraPeopleTotalCost,
             nights,
             nightValue,
             foodTotal,
@@ -294,24 +322,27 @@ export const useAppLogic = () => {
                 inventory: inventoryTotal,
                 misc: miscTotal
             },
-            juniorContribution: juniorExtraCost,
             totalLodgingToCover,
-            housePerAdult,
-            foodPerAdult,
-            totalPerAdult: housePerAdult + foodPerAdult,
-            adultsUsed: adultCount,
-            juniorsUsed: juniorCount,
-            juniorQuota: juniorPrice
+            housePerPerson,
+            foodPerPerson,
+            extraFeePerPerson,
+            totalPerPerson: housePerPerson + foodPerPerson,
+            peopleUsed: peopleCount,
+            overLimitCount,
+            isOverMax,
+            maxCapacity,
+            baseCapacity,
+            isIndependent
         };
     };
 
     const saveOperation = async () => {
         if (!user || !currentPlan) return false;
         try {
-            const currentBudget = calculateBudget(stats.adults, stats.juniors, stats.total);
+            const currentBudget = calculateBudget(stats.people, stats.total);
             const data = {
                 pax: stats.total,
-                presupuesto_total: currentBudget.totalPerAdult * stats.adults,
+                presupuesto_total: currentBudget.totalPerPerson * stats.people,
                 userId: user.$id,
                 planId: currentPlan.$id,
                 detalles_json: JSON.stringify({
@@ -379,16 +410,20 @@ export const useAppLogic = () => {
         }
     };
 
-    const deleteInventoryItem = async (id: string) => {
+    const deleteDocument = async (collectionId: string, id: string) => {
         try {
-            await databases.deleteDocument(APPWRITE_CONFIG.DATABASE, 'viveres', id);
+            await databases.deleteDocument(APPWRITE_CONFIG.DATABASE, collectionId, id);
             loadData();
             return true;
         } catch (error) {
-            console.error(error);
+            console.error(`Error deleting from ${collectionId}:`, error);
             return false;
         }
     };
+
+    // Keep aliases for compatibility with current components
+    const deleteInventoryItem = (collId: string, id: string) => deleteDocument(collId, id);
+    const deletePriceItem = (collId: string, id: string) => deleteDocument(collId, id);
 
     const updatePrice = async (collectionId: string, documentId: string, newPrice: number) => {
         try {
@@ -424,16 +459,7 @@ export const useAppLogic = () => {
         }
     };
 
-    const deletePriceItem = async (collectionId: string, documentId: string) => {
-        try {
-            await databases.deleteDocument(APPWRITE_CONFIG.DATABASE, collectionId, documentId);
-            loadData();
-            return true;
-        } catch (error) {
-            console.error('Error deleting price item:', error);
-            return false;
-        }
-    };
+
 
     const createPlan = async (nombre: string) => {
         if (!user) return null;
@@ -446,7 +472,10 @@ export const useAppLogic = () => {
                     userId: user.$id,
                     nombre,
                     tripDuration: 3,
-                    nightPrice: 0,
+                    nightPrice: 215,
+                    baseCapacity: 10,
+                    maxCapacity: 18,
+                    extraPersonFee: 20,
                     startDate: new Date().toISOString().split('T')[0]
                 }
             );
@@ -466,13 +495,25 @@ export const useAppLogic = () => {
         }
     };
 
-    const updatePlanConfig = async (config: { duration?: number, nightPrice?: number, startDate?: string }) => {
+    const updatePlanConfig = async (config: {
+        duration?: number,
+        nightPrice?: number,
+        startDate?: string,
+        baseCapacity?: number,
+        maxCapacity?: number,
+        extraPersonFee?: number,
+        calculationMethod?: 'socialized' | 'independent'
+    }) => {
         if (!currentPlan) return false;
         try {
             const data: any = {};
             if (config.duration !== undefined) data.tripDuration = config.duration;
             if (config.nightPrice !== undefined) data.nightPrice = config.nightPrice;
             if (config.startDate !== undefined) data.startDate = config.startDate;
+            if (config.baseCapacity !== undefined) data.baseCapacity = config.baseCapacity;
+            if (config.maxCapacity !== undefined) data.maxCapacity = config.maxCapacity;
+            if (config.extraPersonFee !== undefined) data.extraPersonFee = config.extraPersonFee;
+            if (config.calculationMethod !== undefined) data.calculationMethod = config.calculationMethod;
 
             await databases.updateDocument(APPWRITE_CONFIG.DATABASE, 'planificaciones', currentPlan.$id, data);
             if (config.duration !== undefined) setTripDuration(config.duration);
@@ -532,6 +573,8 @@ export const useAppLogic = () => {
         loading,
         simAdults,
         setSimAdults,
+        simulationPrice,
+        setSimulationPrice,
         addAttendee,
         removeAttendee,
         updateAttendee,
