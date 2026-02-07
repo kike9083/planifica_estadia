@@ -205,7 +205,7 @@ export const StatsDashboard = ({ stats, budget, simAdults, setSimAdults, simulat
                                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-orange-500/10">
                                     <div className="flex items-center gap-3">
                                         <div className="w-2 h-2 rounded-full bg-orange-500" />
-                                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Niños 6-11 (Solo Hosp)</span>
+                                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Total (solo hospedaje)</span>
                                     </div>
                                     <span className="text-sm font-black text-white">${(budget?.housePerPerson || 0).toFixed(2)}</span>
                                 </div>

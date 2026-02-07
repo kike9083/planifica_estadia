@@ -120,7 +120,7 @@ export const AnalyticsDashboard = ({ budget, stats }: AnalyticsDashboardProps) =
                         {(budget?.peopleUsed - budget?.adultsUsed > 0) && (
                             <div className="relative z-10 pt-4 border-t border-white/10">
                                 <h2 className="text-3xl font-black text-sky-200 leading-none tracking-tighter">${(budget?.housePerPerson || 0).toFixed(2)}</h2>
-                                <p className="text-[9px] font-bold text-sky-400 mt-2 uppercase tracking-[0.2em]">Total x Niño 6-11 (solo hosp)</p>
+                                <p className="text-[9px] font-bold text-sky-400 mt-2 uppercase tracking-[0.2em]">Total (solo hospedaje)</p>
                             </div>
                         )}
                         <div className="relative z-10 pt-4 border-t border-white/10">
